@@ -1,0 +1,83 @@
+networks:
+  auditoria-net:
+    driver: bridge
+
+services:
+
+  # ---------------------------------------------------------------
+  # PostgreSQL — dados da auditoria (templates, respostas, histórico)
+  # Dados persistidos em /opt/Auditoria/postgres-data no host — não
+  # em volume nomeado do Docker, pra ficar visível/backupável direto.
+  # ---------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: auditoria-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-auditoria}
+      POSTGRES_USER: ${POSTGRES_USER:-auditoria_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /opt/Auditoria/postgres-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - auditoria-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-auditoria_app} -d ${POSTGRES_DB:-auditoria}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # Não expor porta ao host — só o backend acessa, via rede interna do compose.
+
+  # ---------------------------------------------------------------
+  # Backend — Node/Express (API + autenticação LDAP + geração de PDF)
+  # Uploads/anexos persistidos em /opt/Auditoria/uploads no host.
+  # ---------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: auditoria-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: ${BACKEND_PORT:-4000}
+      DATABASE_URL: postgres://${POSTGRES_USER:-auditoria_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-auditoria}
+    volumes:
+      - /opt/Auditoria/uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auditoria-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    # Também sem porta exposta ao host — só o frontend (nginx do container) fala com ele
+    # via rede interna. O nginx do HOST fala com o frontend, não direto com o backend.
+
+  # ---------------------------------------------------------------
+  # Frontend — React (build estático) servido pelo nginx DO CONTAINER,
+  # que faz proxy reverso de /api para o backend. Isso é diferente do
+  # nginx do host: aqui expomos só uma porta interna (17430), e o
+  # nginx que já roda direto no servidor é quem recebe o tráfego
+  # público (443/80) e repassa pra essa porta — ver nginx-host/.
+  # ---------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: auditoria-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:17430:80"   # só localhost — quem expõe pra fora é o nginx do host
+    depends_on:
+      - backend
+    networks:
+      - auditoria-net
