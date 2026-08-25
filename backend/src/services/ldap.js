@@ -59,14 +59,27 @@ function searchAsync(client, base, options) {
   });
 }
 
+function extractValues(user, attrName) {
+  const target = attrName.toLowerCase();
+  if (Array.isArray(user.attributes)) {
+    const attr = user.attributes.find((a) => (a.type || '').toLowerCase() === target);
+    if (attr) return Array.isArray(attr.values) ? attr.values : [attr.values];
+  }
+  if (user[attrName]) {
+    return Array.isArray(user[attrName]) ? user[attrName] : [user[attrName]];
+  }
+  return [];
+}
+
 function checkIsLider(memberOfList, targetGroup) {
   if (!targetGroup) return false;
   const targetLower = targetGroup.toLowerCase().trim();
   return memberOfList.some((dn) => {
-    if (!dn) return false;
-    const dnLower = typeof dn === 'string' ? dn.toLowerCase() : '';
+    if (!dn || typeof dn !== 'string') return false;
+    const dnLower = dn.toLowerCase();
     if (dnLower === targetLower) return true;
-    if (dnLower.startsWith(`cn=${targetLower},`) || dnLower.includes(`cn=${targetLower}`)) return true;
+    if (dnLower.includes(`cn=${targetLower},`) || dnLower.endsWith(`cn=${targetLower}`)) return true;
+    if (dnLower.includes(targetLower)) return true;
     return false;
   });
 }
@@ -104,13 +117,14 @@ async function authenticate(username, password) {
   const searchBase = getSearchBase();
   const leaderGroup = getLeaderGroup();
   let entries = [];
+  let userDn = null;
 
   // Tenta buscar primeiro com a própria conexão autenticada do usuário
   try {
     entries = await searchAsync(userClient, searchBase, {
       scope: 'sub',
       filter: `(|(sAMAccountName=${bareUsername})(userPrincipalName=${userPrincipal}))`,
-      attributes: ['displayName', 'memberOf', 'sAMAccountName', 'mail'],
+      attributes: ['displayName', 'memberOf', 'sAMAccountName', 'mail', 'distinguishedName'],
     });
   } catch (err) {
     console.warn('[ldap] busca com usuário falhou, tentando conta de serviço...', err.message);
@@ -121,40 +135,78 @@ async function authenticate(username, password) {
   // Se não encontrou e temos conta de serviço configurada, tenta com ela
   const bindDn = process.env.LDAP_BIND_DN;
   const bindPass = process.env.LDAP_BIND_PASSWORD;
-  if (entries.length === 0 && bindDn && bindPass) {
-    const svcClient = createClient();
+  let svcClient = null;
+
+  if ((entries.length === 0 || !entries[0]) && bindDn && bindPass) {
     try {
+      svcClient = createClient();
       await bindAsync(svcClient, bindDn, bindPass);
       entries = await searchAsync(svcClient, searchBase, {
         scope: 'sub',
         filter: `(|(sAMAccountName=${bareUsername})(userPrincipalName=${userPrincipal}))`,
-        attributes: ['displayName', 'memberOf', 'sAMAccountName', 'mail'],
+        attributes: ['displayName', 'memberOf', 'sAMAccountName', 'mail', 'distinguishedName'],
       });
     } catch (svcErr) {
       console.warn('[ldap] busca com conta de serviço falhou:', svcErr.message);
-    } finally {
-      try { svcClient.unbind(); } catch (_) {}
     }
   }
 
   // Se encontrou a entrada no AD, extrai os detalhes
   if (entries.length > 0) {
     const user = entries[0];
-    const memberOf = [].concat(user.attributes?.find((a) => a.type === 'memberOf')?.values || user.memberOf || []);
-    const isLider = checkIsLider(memberOf, leaderGroup);
+    userDn = user.dn || extractValues(user, 'distinguishedName')[0] || null;
+    const memberOf = extractValues(user, 'memberOf');
+    let isLider = checkIsLider(memberOf, leaderGroup);
 
-    const getAttr = (name) => {
-      const found = user.attributes?.find((a) => a.type === name);
-      return found ? found.values[0] : user[name];
-    };
+    // Se ainda não deu match, tenta busca direta no grupo (caso memberOf não seja expandido pelo AD)
+    if (!isLider) {
+      try {
+        const clientForGroup = svcClient || createClient();
+        if (!svcClient && bindDn && bindPass) {
+          await bindAsync(clientForGroup, bindDn, bindPass);
+        }
+        const baseDn = process.env.LDAP_BASE_DN || 'DC=argos,DC=local';
+        const groupEntries = await searchAsync(clientForGroup, baseDn, {
+          scope: 'sub',
+          filter: `(|(cn=${leaderGroup})(sAMAccountName=${leaderGroup}))`,
+          attributes: ['member', 'distinguishedName'],
+        });
+
+        if (groupEntries.length > 0) {
+          const members = extractValues(groupEntries[0], 'member').map((m) => String(m).toLowerCase());
+          if (userDn && members.includes(userDn.toLowerCase())) {
+            isLider = true;
+          }
+        }
+      } catch (gErr) {
+        console.warn('[ldap] consulta reversa de grupo falhou:', gErr.message);
+      }
+    }
+
+    if (svcClient) {
+      try { svcClient.unbind(); } catch (_) {}
+    }
+
+    const displayNameArr = extractValues(user, 'displayName');
+    const mailArr = extractValues(user, 'mail');
+    const displayName = displayNameArr[0] || bareUsername;
+    const email = mailArr[0] || null;
+
+    console.log(`[ldap] Login efetuado: ${bareUsername} (${displayName}) | Líder: ${isLider} (Grupo configurado: "${leaderGroup}")`);
 
     return {
       username: bareUsername,
-      displayName: getAttr('displayName') || bareUsername,
-      email: getAttr('mail') || null,
+      displayName,
+      email,
       isLider,
     };
   }
+
+  if (svcClient) {
+    try { svcClient.unbind(); } catch (_) {}
+  }
+
+  console.log(`[ldap] Login efetuado: ${bareUsername} (sem atributos extras) | Líder: false`);
 
   // Fallback: se o usuário autenticou com sucesso mas os atributos não puderam ser lidos
   return {
