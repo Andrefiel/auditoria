@@ -4,7 +4,7 @@ Sistema standalone para digitalizar os 24 roteiros de auditoria interna: preench
 relatório prévio → aprovação (grupo AD `auditores_lideres`) → relatório final em PDF.
 
 Stack: Node/Express + PostgreSQL + React (Vite) + Docker Compose, autenticação via bind LDAP
-contra o Active Directory (`argos.local`).
+contra o Active Directory (`domain.local`).
 
 ## Estrutura
 
