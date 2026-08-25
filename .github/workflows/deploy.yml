@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: deploy-auditoria
-  cancel-in-progress: false   # nunca cancela um deploy em andamento no meio do caminho
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -21,11 +21,11 @@ jobs:
           cat > .env << EOF
           POSTGRES_DB=${{ vars.POSTGRES_DB || 'auditoria' }}
           POSTGRES_USER=${{ vars.POSTGRES_USER || 'auditoria_app' }}
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'auditoria_argos_db_pass' }}
 
           BACKEND_PORT=4000
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          APP_URL=${{ vars.APP_URL || 'https://auditoria.suporteargos.com.br' }}
+          JWT_SECRET=${{ secrets.JWT_SECRET || 'auditoria_argos_jwt_super_secret_key_2026' }}
+          APP_URL=${{ vars.APP_URL || 'http://192.168.0.112:17430' }}
 
           # ---------- LDAP / Active Directory ----------
           LDAP_SERVER=${{ vars.LDAP_SERVER || secrets.LDAP_SERVER || '192.168.0.4' }}
