@@ -28,10 +28,13 @@ async function carregarItensComRespostas(auditoriaId, templateId) {
 
 // POST /api/auditorias — cria um rascunho novo
 router.post('/', async (req, res) => {
-  const { template_id, setor_unidade } = req.body || {};
+  const { template_id, setor_unidade, auditor_lider } = req.body || {};
   if (!template_id || !setor_unidade) {
     return res.status(400).json({ error: 'template_id e setor_unidade são obrigatórios' });
   }
+
+  const liderEscolhido = auditor_lider || (req.user.isLider ? req.user.displayName : null);
+
   const { rows } = await pool.query(
     `INSERT INTO auditorias (template_id, setor_unidade, auditor_lider, auditor_auxiliar, criado_por)
      VALUES ($1,$2,$3,$4,$5)
@@ -39,7 +42,7 @@ router.post('/', async (req, res) => {
     [
       template_id,
       setor_unidade,
-      req.user.isLider ? req.user.displayName : null,
+      liderEscolhido,
       req.user.displayName,
       req.user.username,
     ]
@@ -85,9 +88,9 @@ router.get('/:id', async (req, res) => {
   res.json({ ...auditoria, itens });
 });
 
-// PUT /api/auditorias/:id/respostas — salva respostas + conclusão (rascunho)
+// PUT /api/auditorias/:id/respostas — salva respostas + conclusão + metadados (rascunho)
 router.put('/:id/respostas', async (req, res) => {
-  const { respostas, conclusao } = req.body || {};
+  const { respostas, conclusao, auditor_lider, setor_unidade } = req.body || {};
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -101,18 +104,26 @@ router.put('/:id/respostas', async (req, res) => {
       throw Object.assign(new Error('Só é possível editar auditorias em rascunho'), { code: 409 });
     }
 
-    for (const r of respostas || []) {
-      await client.query(
-        `INSERT INTO auditoria_respostas (auditoria_id, requisito_id, resultado, comentario)
-         VALUES ($1,$2,$3,$4)
-         ON CONFLICT (auditoria_id, requisito_id)
-         DO UPDATE SET resultado = EXCLUDED.resultado, comentario = EXCLUDED.comentario, atualizado_em = now()`,
-        [req.params.id, r.requisito_id, r.resultado || null, r.comentario || null]
-      );
+    if (Array.isArray(respostas)) {
+      for (const r of respostas) {
+        await client.query(
+          `INSERT INTO auditoria_respostas (auditoria_id, requisito_id, resultado, comentario)
+           VALUES ($1,$2,$3,$4)
+           ON CONFLICT (auditoria_id, requisito_id)
+           DO UPDATE SET resultado = EXCLUDED.resultado, comentario = EXCLUDED.comentario, atualizado_em = now()`,
+          [req.params.id, r.requisito_id, r.resultado || null, r.comentario || null]
+        );
+      }
     }
 
     if (conclusao !== undefined) {
       await client.query(`UPDATE auditorias SET conclusao = $1 WHERE id = $2`, [conclusao, req.params.id]);
+    }
+    if (auditor_lider !== undefined) {
+      await client.query(`UPDATE auditorias SET auditor_lider = $1 WHERE id = $2`, [auditor_lider, req.params.id]);
+    }
+    if (setor_unidade !== undefined) {
+      await client.query(`UPDATE auditorias SET setor_unidade = $1 WHERE id = $2`, [setor_unidade, req.params.id]);
     }
 
     await client.query('COMMIT');

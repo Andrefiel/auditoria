@@ -76,7 +76,7 @@ services:
     container_name: auditoria-frontend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:17430:80"   # só localhost — quem expõe pra fora é o nginx do host
+      - "17430:80"   # só localhost — quem expõe pra fora é o nginx do host
     depends_on:
       - backend
     networks:

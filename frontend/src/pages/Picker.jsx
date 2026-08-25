@@ -1,30 +1,49 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, AUDITORES_LIDERES } from '../lib/api';
+import { useAuth } from '../lib/auth.jsx';
 import Topbar from '../components/Topbar.jsx';
 
 export default function Picker() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [templates, setTemplates] = useState(null);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
-  const [creating, setCreating] = useState(null);
+  const [creating, setCreating] = useState(false);
+
+  // Estado do modal de nova auditoria
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [unidade, setUnidade] = useState('');
+  const [auditorLider, setAuditorLider] = useState(AUDITORES_LIDERES[0]);
 
   useEffect(() => {
     api.templates().then(setTemplates).catch((e) => setError(e.message));
   }, []);
 
-  async function handleSelect(t) {
-    const unidade = window.prompt(`Setor/unidade auditada (ex: "Recepção — Unidade Aldeota"):`, t.nome);
-    if (!unidade) return;
-    setCreating(t.id);
+  function handleOpenModal(t) {
+    setSelectedTemplate(t);
+    setUnidade(`${t.nome} — Matriz`);
+    // Se o usuário logado for um dos líderes, pré-seleciona ele, senão o primeiro da lista
+    const liderMatch = AUDITORES_LIDERES.find((l) => l.toLowerCase() === user?.displayName?.toLowerCase());
+    setAuditorLider(liderMatch || AUDITORES_LIDERES[0]);
+    setError('');
+  }
+
+  async function handleConfirmCreate(e) {
+    if (e) e.preventDefault();
+    if (!unidade.trim()) {
+      setError('Por favor, informe a unidade/local auditado.');
+      return;
+    }
+    setCreating(true);
+    setError('');
     try {
-      const { id } = await api.criarAuditoria(t.id, unidade);
+      const { id } = await api.criarAuditoria(selectedTemplate.id, unidade.trim(), auditorLider);
       navigate(`/auditorias/${id}/preencher`);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setCreating(null);
+    } catch (err) {
+      setError(err.message);
+      setCreating(false);
     }
   }
 
@@ -40,7 +59,7 @@ export default function Picker() {
           <p className="sub">Escolha o roteiro/setor que você vai auditar.</p>
         </div>
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && !selectedTemplate && <div className="error-banner">{error}</div>}
 
         <div className="field" style={{ marginBottom: 16 }}>
           <input
@@ -54,18 +73,98 @@ export default function Picker() {
 
         {templates === null && <div className="sector-empty">Carregando...</div>}
         {list.map((t) => (
-          <div key={t.id} className="sector-row" onClick={() => (creating ? null : handleSelect(t))}>
+          <div key={t.id} className="sector-row" onClick={() => handleOpenModal(t)}>
             <div>
               <div className="sector-row-name">{t.nome}</div>
               <div className="sector-row-meta">
                 {t.itens} requisitos{t.status !== 'ativo' ? ' · aguardando cadastro' : ''}
               </div>
             </div>
-            {creating === t.id ? <span className="spinner" /> : <span className="sector-row-arrow">→</span>}
+            <span className="sector-row-arrow">→</span>
           </div>
         ))}
         {templates && list.length === 0 && <div className="sector-empty">Nenhum setor encontrado.</div>}
       </div>
+
+      {/* Modal de Configuração da Auditoria */}
+      {selectedTemplate && (
+        <div className="modal-overlay" onClick={() => !creating && setSelectedTemplate(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 2 }}>Configurar Auditoria</div>
+                <h2 style={{ margin: 0, fontSize: 17, color: 'var(--ink)' }}>{selectedTemplate.nome}</h2>
+              </div>
+              <button className="modal-close" onClick={() => !creating && setSelectedTemplate(null)}>✕</button>
+            </div>
+
+            {error && <div className="error-banner" style={{ margin: '12px 0' }}>{error}</div>}
+
+            <form onSubmit={handleConfirmCreate} style={{ marginTop: 14 }}>
+              <div className="field">
+                <label>Setor / Unidade Auditada</label>
+                <input
+                  type="text"
+                  value={unidade}
+                  onChange={(e) => setUnidade(e.target.value)}
+                  placeholder="Ex: Recepção — Unidade Aldeota"
+                  required
+                />
+                <div className="field-hint">Especifique a unidade ou posto de atendimento auditado.</div>
+              </div>
+
+              <div className="field">
+                <label>Auditor(a) Líder Responsável</label>
+                <select
+                  value={auditorLider}
+                  onChange={(e) => setAuditorLider(e.target.value)}
+                  style={{
+                    width: '100%',
+                    border: '1.5px solid var(--line)',
+                    borderRadius: 8,
+                    padding: '11px 12px',
+                    background: 'white',
+                    fontWeight: 600,
+                    color: 'var(--ink)',
+                  }}
+                >
+                  {AUDITORES_LIDERES.map((lider) => (
+                    <option key={lider} value={lider}>
+                      {lider}
+                    </option>
+                  ))}
+                </select>
+                <div className="field-hint">O auditor líder selecionado revisará e aprovará este relatório.</div>
+              </div>
+
+              <div className="field">
+                <label>Auditor Auxiliar (Você)</label>
+                <input
+                  type="text"
+                  value={user?.displayName || ''}
+                  readOnly
+                  style={{ background: '#F5F7FA', color: 'var(--ink-soft)' }}
+                />
+              </div>
+
+              <div className="btn-row" style={{ marginTop: 20 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setSelectedTemplate(null)}
+                  disabled={creating}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={creating}>
+                  {creating ? <span className="spinner" /> : 'Iniciar Auditoria →'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

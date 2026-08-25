@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, AUDITORES_LIDERES } from '../lib/api';
 import Topbar from '../components/Topbar.jsx';
 
 const STATUSES = ['C', 'NC', 'PA', 'OM', 'NA'];
@@ -11,6 +11,8 @@ export default function Preenchimento() {
   const [auditoria, setAuditoria] = useState(null);
   const [itens, setItens] = useState([]);
   const [conclusao, setConclusao] = useState('');
+  const [auditorLider, setAuditorLider] = useState('');
+  const [unidade, setUnidade] = useState('');
   const [openDetail, setOpenDetail] = useState({});
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
@@ -21,6 +23,8 @@ export default function Preenchimento() {
     setAuditoria(data);
     setItens(data.itens);
     setConclusao(data.conclusao || '');
+    setAuditorLider(data.auditor_lider || AUDITORES_LIDERES[0]);
+    setUnidade(data.setor_unidade || '');
   }, [id]);
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export default function Preenchimento() {
     setItens((prev) => prev.map((i) => (i.requisito_id === requisitoId ? { ...i, comentario } : i)));
   }
 
-  async function persist() {
+  async function persist(customOverrides = {}) {
     setSaving(true);
     setError('');
     try {
@@ -43,7 +47,10 @@ export default function Preenchimento() {
         resultado: i.resultado || null,
         comentario: i.comentario || null,
       }));
-      await api.salvarRespostas(id, respostas, conclusao);
+      await api.salvarRespostas(id, respostas, conclusao, {
+        auditor_lider: customOverrides.auditor_lider !== undefined ? customOverrides.auditor_lider : auditorLider,
+        setor_unidade: customOverrides.setor_unidade !== undefined ? customOverrides.setor_unidade : unidade,
+      });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -95,17 +102,36 @@ export default function Preenchimento() {
         <div className="meta-row">
           <div className="meta-pill">
             <label>Auditor(a) Líder</label>
-            <input value={auditoria.auditor_lider || '— (pendente)'} readOnly />
+            <select
+              value={auditorLider}
+              onChange={(e) => {
+                const val = e.target.value;
+                setAuditorLider(val);
+                persist({ auditor_lider: val });
+              }}
+            >
+              {AUDITORES_LIDERES.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="meta-pill">
             <label>Auditor auxiliar</label>
-            <input value={auditoria.auditor_auxiliar} readOnly />
+            <input value={auditoria.auditor_auxiliar} readOnly style={{ cursor: 'default' }} />
           </div>
           <div className="meta-pill">
-            <label>Unidade</label>
-            <input value={auditoria.setor_unidade} readOnly />
+            <label>Unidade / Local</label>
+            <input
+              value={unidade}
+              onChange={(e) => setUnidade(e.target.value)}
+              onBlur={() => persist()}
+              placeholder="Ex: Recepção — Matriz"
+            />
           </div>
         </div>
+
 
         <div className="progress-wrap">
           <div className="progress-top">
