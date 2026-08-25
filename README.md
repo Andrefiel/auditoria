@@ -69,7 +69,7 @@ npm run dev                 # http://localhost:5173 — proxy /api já aponta pr
 
 | Variável | Descrição |
 |---|---|
-| `LDAP_URL` | URL do controlador de domínio (ex: `ldap://192.168.0.10:389`) |
+| `LDAP_URL` | URL do controlador de domínio (ex: `ldap://ip:389`) |
 | `LDAP_BIND_DN` / `LDAP_BIND_PASSWORD` | Conta de serviço só-leitura, usada para buscar `displayName` e `memberOf` do usuário após o bind dele |
 | `LDAP_GROUP_AUDITORES_LIDERES` | DN completo do grupo — define quem assina como Líder e quem pode aprovar/reprovar |
 | `LIDERES_NOTIFY_EMAIL` | E-mail/lista de distribuição que recebe notificação quando uma auditoria é enviada pra aprovação |
@@ -98,7 +98,7 @@ completo em [`DEPLOY.md`](./DEPLOY.md).
 ## O que ainda falta antes de ir pra produção
 
 - [ ] Testar o bind LDAP contra o AD real da Argos (aqui só foi validado com JWT simulado, já
-      que não há acesso ao `argos.local` neste ambiente)
+      que não há acesso ao `domain.local` neste ambiente)
 - [ ] Revisar os 3 itens que a planilha de extração ainda marcou como "precisa revisão"
 - [ ] Configurar o `LIDERES_NOTIFY_EMAIL` com a lista de distribuição real da Qualidade
 - [ ] Decidir se o e-mail do auditor auxiliar (usado em `notificarDecisao`) deve vir do LDAP

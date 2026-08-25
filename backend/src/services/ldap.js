@@ -71,17 +71,48 @@ function extractValues(user, attrName) {
   return [];
 }
 
-function checkIsLider(memberOfList, targetGroup) {
-  if (!targetGroup) return false;
-  const targetLower = targetGroup.toLowerCase().trim();
-  return memberOfList.some((dn) => {
-    if (!dn || typeof dn !== 'string') return false;
-    const dnLower = dn.toLowerCase();
-    if (dnLower === targetLower) return true;
-    if (dnLower.includes(`cn=${targetLower},`) || dnLower.endsWith(`cn=${targetLower}`)) return true;
-    if (dnLower.includes(targetLower)) return true;
-    return false;
+function normalize(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/[_\s-]+/g, ' ')       // unifica underlines, traços e espaços
+    .trim();
+}
+
+function checkIsLider(memberOfList, targetGroupConfig, username = '', displayName = '') {
+  if (!targetGroupConfig && !username && !displayName) return false;
+
+  // Lista de grupos configurados no .env (aceita múltiplos separados por vírgula)
+  const targets = (targetGroupConfig || 'auditores_lideres,Qualidade')
+    .split(',')
+    .map((t) => normalize(t))
+    .filter(Boolean);
+
+  // Também inclui variações conhecidas
+  targets.push('auditores lideres', 'auditores_lideres');
+
+  // 1. Checa a lista de grupos (memberOf)
+  const isMember = memberOfList.some((rawDn) => {
+    if (!rawDn || typeof rawDn !== 'string') return false;
+    const normalizedDn = normalize(rawDn);
+
+    // Extrai o CN do DN se existir (ex: "CN=Auditores Líderes,OU=..." -> "Auditores Líderes")
+    const cnMatch = rawDn.match(/cn=([^,]+)/i);
+    const cnNormalized = cnMatch ? normalize(cnMatch[1]) : '';
+
+    return targets.some((target) => {
+      if (normalizedDn === target) return true;
+      if (cnNormalized === target) return true;
+      if (normalizedDn.includes(`cn=${target}`) || normalizedDn.includes(target)) return true;
+      return false;
+    });
   });
+
+  if (isMember) return true;
+
+  return false;
 }
 
 /**
@@ -135,32 +166,35 @@ async function authenticate(username, password) {
       const user = entries[0];
       userDn = user.dn || extractValues(user, 'distinguishedName')[0] || null;
       const memberOf = extractValues(user, 'memberOf');
-      let isLider = checkIsLider(memberOf, leaderGroup);
+      const displayNameArr = extractValues(user, 'displayName');
+      const mailArr = extractValues(user, 'mail');
+      const displayName = displayNameArr[0] || bareUsername;
+      const email = mailArr[0] || null;
+
+      let isLider = checkIsLider(memberOf, leaderGroup, bareUsername, displayName);
 
       // Se ainda não deu match por memberOf, tenta busca direta nos membros do grupo
       if (!isLider) {
         try {
           const groupEntries = await searchAsync(userClient, baseDn, {
             scope: 'sub',
-            filter: `(|(cn=${leaderGroup})(sAMAccountName=${leaderGroup}))`,
+            filter: `(|(cn=${leaderGroup})(sAMAccountName=${leaderGroup})(cn=auditores_lideres)(cn=Auditores Líderes))`,
             attributes: ['member', 'distinguishedName'],
           });
 
           if (groupEntries.length > 0) {
-            const members = extractValues(groupEntries[0], 'member').map((m) => String(m).toLowerCase());
-            if (userDn && members.includes(userDn.toLowerCase())) {
-              isLider = true;
+            for (const grp of groupEntries) {
+              const members = extractValues(grp, 'member').map((m) => String(m).toLowerCase());
+              if (userDn && members.includes(userDn.toLowerCase())) {
+                isLider = true;
+                break;
+              }
             }
           }
         } catch (gErr) {
           console.warn('[ldap] consulta direta no grupo falhou:', gErr.message);
         }
       }
-
-      const displayNameArr = extractValues(user, 'displayName');
-      const mailArr = extractValues(user, 'mail');
-      const displayName = displayNameArr[0] || bareUsername;
-      const email = mailArr[0] || null;
 
       console.log(`[ldap] Login com sucesso: ${bareUsername} (${displayName}) | Líder: ${isLider} (Grupo configurado: "${leaderGroup}")`);
       if (memberOf.length > 0) {
