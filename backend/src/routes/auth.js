@@ -1,15 +1,29 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../services/ldap');
+const { validateBody, z } = require('../middleware/validate');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 
-router.post('/login', async (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Informe usuário e senha' });
-  }
+// Rate Limit estrito para tentativas de login: máx 10 tentativas a cada 5 minutos por IP
+const loginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de login com falha. Aguarde 5 minutos antes de tentar novamente.' },
+});
+
+// Schema de validação Zod do Login
+const loginSchema = z.object({
+  username: z.string({ required_error: 'Informe o usuário' }).trim().min(2, 'Usuário muito curto').max(80, 'Usuário muito longo'),
+  password: z.string({ required_error: 'Informe a senha' }).min(1, 'Informe a senha').max(128, 'Senha muito longa'),
+});
+
+router.post('/login', loginLimiter, validateBody(loginSchema), async (req, res) => {
+  const { username, password } = req.body;
 
   try {
     const user = await authenticate(username, password);
@@ -32,3 +46,4 @@ router.post('/login', async (req, res) => {
 });
 
 module.exports = router;
+

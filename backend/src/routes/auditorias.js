@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireAuth, requireLider } = require('../middleware/auth');
+const { validateBody, z } = require('../middleware/validate');
 const { gerarRelatorioPDF } = require('../services/pdf');
 const { notificarEnvioParaAprovacao, notificarDecisao } = require('../services/mailer');
 
@@ -8,8 +9,32 @@ const router = express.Router();
 router.use(requireAuth);
 
 const APP_URL = process.env.APP_URL || 'http://localhost';
-// Grupo auditores_lideres normalmente recebe notificação via lista de distribuição do Exchange
 const LIDERES_EMAIL = process.env.LIDERES_NOTIFY_EMAIL;
+
+// Schemas Zod de Validação
+const criarAuditoriaSchema = z.object({
+  template_id: z.number({ required_error: 'template_id é obrigatório' }).int().positive(),
+  setor_unidade: z.string({ required_error: 'setor_unidade é obrigatório' }).trim().min(2, 'Setor/unidade muito curto').max(150, 'Setor/unidade muito longo'),
+  auditor_lider: z.string().trim().max(120).optional().nullable(),
+});
+
+const salvarRespostasSchema = z.object({
+  respostas: z.array(
+    z.object({
+      requisito_id: z.number().int().positive(),
+      resultado: z.enum(['C', 'NC', 'PA', 'OM', 'NA']).nullable().optional(),
+      comentario: z.string().max(3000, 'Comentário muito longo').nullable().optional(),
+    })
+  ).optional(),
+  conclusao: z.string().max(5000, 'Conclusão muito longa').nullable().optional(),
+  auditor_lider: z.string().trim().max(120).nullable().optional(),
+  setor_unidade: z.string().trim().min(2).max(150).optional(),
+});
+
+const decidirSchema = z.object({
+  decisao: z.enum(['aprovado', 'reprovado'], { required_error: "decisao deve ser 'aprovado' ou 'reprovado'" }),
+  observacao: z.string().max(2000, 'Observação muito longa').nullable().optional(),
+});
 
 async function carregarItensComRespostas(auditoriaId, templateId) {
   const { rows } = await pool.query(
@@ -27,12 +52,8 @@ async function carregarItensComRespostas(auditoriaId, templateId) {
 }
 
 // POST /api/auditorias — cria um rascunho novo
-router.post('/', async (req, res) => {
-  const { template_id, setor_unidade, auditor_lider } = req.body || {};
-  if (!template_id || !setor_unidade) {
-    return res.status(400).json({ error: 'template_id e setor_unidade são obrigatórios' });
-  }
-
+router.post('/', validateBody(criarAuditoriaSchema), async (req, res) => {
+  const { template_id, setor_unidade, auditor_lider } = req.body;
   const liderEscolhido = auditor_lider || (req.user.isLider ? req.user.displayName : null);
 
   const { rows } = await pool.query(
@@ -89,8 +110,8 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT /api/auditorias/:id/respostas — salva respostas + conclusão + metadados (rascunho)
-router.put('/:id/respostas', async (req, res) => {
-  const { respostas, conclusao, auditor_lider, setor_unidade } = req.body || {};
+router.put('/:id/respostas', validateBody(salvarRespostasSchema), async (req, res) => {
+  const { respostas, conclusao, auditor_lider, setor_unidade } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -179,11 +200,8 @@ router.post('/:id/enviar', async (req, res) => {
 });
 
 // POST /api/auditorias/:id/decidir — aprovar ou reprovar (só auditores_lideres)
-router.post('/:id/decidir', requireLider, async (req, res) => {
-  const { decisao, observacao } = req.body || {};
-  if (!['aprovado', 'reprovado'].includes(decisao)) {
-    return res.status(400).json({ error: "decisao deve ser 'aprovado' ou 'reprovado'" });
-  }
+router.post('/:id/decidir', requireLider, validateBody(decidirSchema), async (req, res) => {
+  const { decisao, observacao } = req.body;
   if (decisao === 'reprovado' && !observacao) {
     return res.status(422).json({ error: 'Observação é obrigatória ao reprovar' });
   }

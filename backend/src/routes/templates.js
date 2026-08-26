@@ -1,9 +1,19 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireAuth, requireLider } = require('../middleware/auth');
+const { validateBody, z } = require('../middleware/validate');
 
 const router = express.Router();
 router.use(requireAuth);
+
+const requisitoSchema = z.object({
+  codigo: z.string({ required_error: 'Código é obrigatório' }).trim().min(1, 'Código não pode ser vazio').max(30),
+  nome: z.string({ required_error: 'Nome é obrigatório' }).trim().min(1, 'Nome não pode ser vazio').max(300),
+  requisito: z.string().max(5000).optional().nullable(),
+  evidencia: z.string().max(5000).optional().nullable(),
+  core: z.boolean().optional().default(false),
+  tag: z.string().max(20).optional().nullable(),
+});
 
 // GET /api/templates — lista os setores/roteiros com contagem de itens
 router.get('/', async (req, res) => {
@@ -34,11 +44,8 @@ router.get('/:id/itens', async (req, res) => {
 router.use(requireLider);
 
 // POST /api/templates/:id/itens — adiciona um requisito ao roteiro
-router.post('/:id/itens', async (req, res) => {
-  const { codigo, nome, requisito, evidencia, core, tag } = req.body || {};
-  if (!codigo || !nome) {
-    return res.status(400).json({ error: 'Código e nome são obrigatórios' });
-  }
+router.post('/:id/itens', validateBody(requisitoSchema), async (req, res) => {
+  const { codigo, nome, requisito, evidencia, core, tag } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -74,8 +81,8 @@ router.post('/:id/itens', async (req, res) => {
 });
 
 // PUT /api/templates/:id/itens/:requisitoId — edita um requisito
-router.put('/:id/itens/:requisitoId', async (req, res) => {
-  const { codigo, nome, requisito, evidencia, core, tag } = req.body || {};
+router.put('/:id/itens/:requisitoId', validateBody(requisitoSchema), async (req, res) => {
+  const { codigo, nome, requisito, evidencia, core, tag } = req.body;
   await pool.query(
     `UPDATE requisitos SET codigo=$1, nome=$2, requisito=$3, evidencia=$4, core=$5, tag=$6
      WHERE id = $7`,
