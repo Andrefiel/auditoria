@@ -8,7 +8,7 @@ function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Não autenticado' });
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     req.user = payload; // { username, displayName, isLider }
     next();
   } catch (err) {

@@ -36,7 +36,7 @@ router.post('/login', loginLimiter, validateBody(loginSchema), async (req, res) 
     const token = jwt.sign(
       { username: user.username, displayName: user.displayName, isLider: user.isLider },
       JWT_SECRET,
-      { expiresIn: '8h' }
+      { expiresIn: '8h', algorithm: 'HS256' }
     );
     res.json({ token, user });
   } catch (err) {
