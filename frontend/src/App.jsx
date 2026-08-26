@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth.jsx';
+import { useAutoLogout } from './lib/useAutoLogout.js';
 
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -16,6 +17,9 @@ function PrivateRoute({ children }) {
 }
 
 function AppRoutes() {
+  // Encerra a sessão automaticamente após 30 minutos de inatividade do usuário
+  useAutoLogout();
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

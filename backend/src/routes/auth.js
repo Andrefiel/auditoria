@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const { authenticate } = require('../services/ldap');
 const { validateBody, z } = require('../middleware/validate');
+const { registrarLog } = require('../services/auditLog');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -28,6 +29,7 @@ router.post('/login', loginLimiter, validateBody(loginSchema), async (req, res) 
 
   // Bot Protection: Se o campo oculto foi preenchido, é um bot
   if (website) {
+    registrarLog({ usuario: username, acao: 'LOGIN_BLOQUEADO_BOT', recurso: 'auth', req, detalhes: { motivo: 'honeypot' } });
     return res.status(400).json({ error: 'Requisição inválida' });
   }
 
@@ -38,8 +40,27 @@ router.post('/login', loginLimiter, validateBody(loginSchema), async (req, res) 
       JWT_SECRET,
       { expiresIn: '8h', algorithm: 'HS256' }
     );
+
+    // Registra auditoria de login com sucesso
+    registrarLog({
+      usuario: user.username,
+      acao: 'LOGIN_SUCESSO',
+      recurso: 'auth',
+      req,
+      detalhes: { displayName: user.displayName, isLider: user.isLider },
+    });
+
     res.json({ token, user });
   } catch (err) {
+    // Registra tentativa com falha
+    registrarLog({
+      usuario: username,
+      acao: 'LOGIN_FALHA',
+      recurso: 'auth',
+      req,
+      detalhes: { erro: err.code || err.message },
+    });
+
     if (err.code === 'INVALID_CREDENTIALS') {
       return res.status(401).json({ error: 'Usuário ou senha inválidos' });
     }

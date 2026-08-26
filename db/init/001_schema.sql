@@ -102,3 +102,20 @@ ALTER TABLE auditoria_respostas ENABLE ROW LEVEL SECURITY;
 CREATE POLICY app_all_auditorias ON auditorias FOR ALL TO PUBLIC USING (true) WITH CHECK (true);
 CREATE POLICY app_all_respostas ON auditoria_respostas FOR ALL TO PUBLIC USING (true) WITH CHECK (true);
 
+-- ---------- Trilha de Auditoria e Conformidade de Segurança (Audit Log) ----------
+CREATE TABLE IF NOT EXISTS seguranca_audit_logs (
+  id          BIGSERIAL PRIMARY KEY,
+  usuario     VARCHAR(80) NOT NULL,
+  acao        VARCHAR(60) NOT NULL,
+  recurso     VARCHAR(60),
+  recurso_id  VARCHAR(100),
+  ip          VARCHAR(45),
+  user_agent  TEXT,
+  detalhes    JSONB,
+  criado_em   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_usuario ON seguranca_audit_logs (usuario);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_acao ON seguranca_audit_logs (acao);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_criado_em ON seguranca_audit_logs (criado_em DESC);
+
+

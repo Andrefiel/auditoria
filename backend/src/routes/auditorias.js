@@ -4,6 +4,7 @@ const { requireAuth, requireLider } = require('../middleware/auth');
 const { validateBody, z } = require('../middleware/validate');
 const { gerarRelatorioPDF } = require('../services/pdf');
 const { notificarEnvioParaAprovacao, notificarDecisao } = require('../services/mailer');
+const { registrarLog } = require('../services/auditLog');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -68,7 +69,18 @@ router.post('/', validateBody(criarAuditoriaSchema), async (req, res) => {
       req.user.username,
     ]
   );
-  res.status(201).json({ id: rows[0].id });
+
+  const novaId = rows[0].id;
+  registrarLog({
+    usuario: req.user.username,
+    acao: 'CRIAR_AUDITORIA',
+    recurso: 'auditoria',
+    recurso_id: novaId,
+    req,
+    detalhes: { template_id, setor_unidade, auditor_lider: liderEscolhido },
+  });
+
+  res.status(201).json({ id: novaId });
 });
 
 // GET /api/auditorias/mine — minhas auditorias
@@ -202,6 +214,15 @@ router.post('/:id/enviar', async (req, res) => {
     });
   }
 
+  registrarLog({
+    usuario: req.user.username,
+    acao: 'ENVIAR_APROVACAO',
+    recurso: 'auditoria',
+    recurso_id: req.params.id,
+    req,
+    detalhes: { setor: auditoria.template_nome, unidade: auditoria.setor_unidade },
+  });
+
   res.json({ ok: true, status: 'aguardando_aprovacao' });
 });
 
@@ -245,6 +266,15 @@ router.post('/:id/decidir', requireLider, validateBody(decidirSchema), async (re
     decisao,
     observacao,
     link: `${APP_URL}/auditorias/${auditoria.id}`,
+  });
+
+  registrarLog({
+    usuario: req.user.username,
+    acao: `DECISAO_${decisao.toUpperCase()}`,
+    recurso: 'auditoria',
+    recurso_id: req.params.id,
+    req,
+    detalhes: { decisao, observacao, setor: auditoria.template_nome, unidade: auditoria.setor_unidade },
   });
 
   res.json({ ok: true, status: novoStatus });
