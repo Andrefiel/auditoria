@@ -7,6 +7,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [website, setWebsite] = useState(''); // Honeypot contra bots
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -15,7 +16,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(username, password);
+      await login(username, password, website);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Erro ao entrar');
@@ -34,6 +35,18 @@ export default function Login() {
         <div className="login-domain">🔒 Autenticação via <b>ARGOS\</b> Active Directory</div>
 
         <form onSubmit={handleSubmit}>
+          {/* Honeypot invisível para bots */}
+          <input
+            type="text"
+            name="website"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            style={{ display: 'none', position: 'absolute', left: '-9999px', opacity: 0 }}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+          />
+
           <div className="field">
             <label>Usuário de rede</label>
             <input

@@ -53,7 +53,8 @@ async function request(path, { method = 'GET', body, headers = {} } = {}) {
 }
 
 export const api = {
-  login: (username, password) => request('/auth/login', { method: 'POST', body: { username, password } }),
+  login: (username, password, website = '') =>
+    request('/auth/login', { method: 'POST', body: { username, password, website } }),
 
   templates: () => request('/templates'),
   templateItens: (id) => request(`/templates/${id}/itens`),

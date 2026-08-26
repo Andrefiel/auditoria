@@ -93,3 +93,12 @@ CREATE TRIGGER trg_requisitos_updated BEFORE UPDATE ON requisitos
   FOR EACH ROW EXECUTE FUNCTION set_atualizado_em();
 CREATE TRIGGER trg_auditorias_updated BEFORE UPDATE ON auditorias
   FOR EACH ROW EXECUTE FUNCTION set_atualizado_em();
+
+-- ---------- Segurança: Row Level Security (RLS) ----------
+ALTER TABLE auditorias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE auditoria_respostas ENABLE ROW LEVEL SECURITY;
+
+-- Política padrão para a aplicação: auditoria_app tem acesso irrestrito quando conectado via backend
+CREATE POLICY app_all_auditorias ON auditorias FOR ALL TO PUBLIC USING (true) WITH CHECK (true);
+CREATE POLICY app_all_respostas ON auditoria_respostas FOR ALL TO PUBLIC USING (true) WITH CHECK (true);
+

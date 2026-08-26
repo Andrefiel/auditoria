@@ -96,10 +96,16 @@ router.get('/pendentes', requireLider, async (req, res) => {
   res.json(rows);
 });
 
+const AUDITORIA_SELECT_FIELDS = `
+  a.id, a.template_id, a.setor_unidade, a.auditor_lider, a.auditor_auxiliar,
+  a.conclusao, a.status, a.criado_por, a.aprovado_por, a.aprovado_em,
+  a.criado_em, a.atualizado_em, t.nome AS template_nome
+`;
+
 // GET /api/auditorias/:id — detalhe completo
 router.get('/:id', async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT a.*, t.nome AS template_nome FROM auditorias a
+    `SELECT ${AUDITORIA_SELECT_FIELDS} FROM auditorias a
      JOIN templates t ON t.id = a.template_id WHERE a.id = $1`,
     [req.params.id]
   );
@@ -163,7 +169,7 @@ router.put('/:id/respostas', validateBody(salvarRespostasSchema), async (req, re
 // POST /api/auditorias/:id/enviar — gera o relatório prévio e manda pra aprovação
 router.post('/:id/enviar', async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT a.*, t.nome AS template_nome FROM auditorias a
+    `SELECT ${AUDITORIA_SELECT_FIELDS} FROM auditorias a
      JOIN templates t ON t.id = a.template_id WHERE a.id = $1`,
     [req.params.id]
   );
@@ -207,7 +213,7 @@ router.post('/:id/decidir', requireLider, validateBody(decidirSchema), async (re
   }
 
   const { rows } = await pool.query(
-    `SELECT a.*, t.nome AS template_nome FROM auditorias a
+    `SELECT ${AUDITORIA_SELECT_FIELDS} FROM auditorias a
      JOIN templates t ON t.id = a.template_id WHERE a.id = $1`,
     [req.params.id]
   );
@@ -247,7 +253,7 @@ router.post('/:id/decidir', requireLider, validateBody(decidirSchema), async (re
 // GET /api/auditorias/:id/pdf — gera o PDF (prévio se aguardando_aprovacao, final se aprovado)
 router.get('/:id/pdf', async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT a.*, t.nome AS template_nome FROM auditorias a
+    `SELECT ${AUDITORIA_SELECT_FIELDS} FROM auditorias a
      JOIN templates t ON t.id = a.template_id WHERE a.id = $1`,
     [req.params.id]
   );

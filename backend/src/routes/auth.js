@@ -16,14 +16,20 @@ const loginLimiter = rateLimit({
   message: { error: 'Muitas tentativas de login com falha. Aguarde 5 minutos antes de tentar novamente.' },
 });
 
-// Schema de validação Zod do Login
+// Schema de validação Zod do Login (inclui honeypot para proteção contra robôs)
 const loginSchema = z.object({
   username: z.string({ required_error: 'Informe o usuário' }).trim().min(2, 'Usuário muito curto').max(80, 'Usuário muito longo'),
   password: z.string({ required_error: 'Informe a senha' }).min(1, 'Informe a senha').max(128, 'Senha muito longa'),
+  website: z.string().optional().nullable(),
 });
 
 router.post('/login', loginLimiter, validateBody(loginSchema), async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, website } = req.body;
+
+  // Bot Protection: Se o campo oculto foi preenchido, é um bot
+  if (website) {
+    return res.status(400).json({ error: 'Requisição inválida' });
+  }
 
   try {
     const user = await authenticate(username, password);

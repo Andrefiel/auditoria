@@ -6,8 +6,8 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getUser());
 
-  const login = useCallback(async (username, password) => {
-    const { token, user: u } = await api.login(username, password);
+  const login = useCallback(async (username, password, website = '') => {
+    const { token, user: u } = await api.login(username, password, website);
     setSession(token, u);
     setUser(u);
     return u;
