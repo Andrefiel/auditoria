@@ -129,7 +129,7 @@ export default function RelatorioFinal() {
 
           <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px dashed var(--line)', textAlign: 'center' }}>
             <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 600 }}>
-              Assinatura Digital / Aprovação do Laudo
+              Assinatura Digital / Aprovação do Relatorio
             </div>
             <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--navy)', marginTop: 6 }}>
               Aprovado digitalmente por: {auditoria.aprovado_por}
@@ -139,7 +139,7 @@ export default function RelatorioFinal() {
             </div>
             <div style={{ marginTop: 16 }}>
               <a href={api.pdfUrl(id)} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ display: 'inline-block', padding: '10px 24px', textDecoration: 'none' }}>
-                📄 Baixar PDF do Laudo Oficial
+                📄 Baixar PDF do Relatorio Final
               </a>
             </div>
           </div>

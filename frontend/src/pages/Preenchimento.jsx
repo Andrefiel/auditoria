@@ -328,7 +328,7 @@ export default function Preenchimento() {
 
             {semJustificativaObrigatoria.length > 0 && done === itens.length && (
               <div className="note-banner" style={{ background: '#FFF7ED', borderColor: '#FED7AA', color: '#9A3412', marginBottom: 16 }}>
-                ⚠️ Atenção: <b>{semJustificativaObrigatoria.length} item(ns)</b> marcado(s) com <b>NC, PA ou NA</b> ainda não possuem justificativa preenchida. O preenchimento do comentário é obrigatório para enviar o laudo.
+                ⚠️ Atenção: <b>{semJustificativaObrigatoria.length} item(ns)</b> marcado(s) com <b>NC, PA ou NA</b> ainda não possuem justificativa preenchida. O preenchimento do comentário é obrigatório para enviar o Relatorio.
               </div>
             )}
 
