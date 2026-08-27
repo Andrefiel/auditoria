@@ -240,7 +240,7 @@ function gerarRelatorioPDF(stream, auditoria, templateNome, itens, aprovado, dad
     doc.moveTo(50, y).lineTo(545, y).strokeColor(LINE).dash(2, { space: 2 }).stroke().undash();
     y += 20;
     doc.font('Helvetica').fontSize(9.5).fillColor(INK_SOFT)
-      .text('ASSINATURA DIGITAL / APROVAÇÃO DO LAUDO', 50, y, { align: 'center', width: 495, characterSpacing: 1 });
+      .text('ASSINATURA DIGITAL / APROVAÇÃO DO RELATÓRIO', 50, y, { align: 'center', width: 495, characterSpacing: 1 });
     y += 16;
     doc.font('Helvetica-Bold').fontSize(13.5).fillColor(NAVY)
       .text(`Aprovado digitalmente por: ${auditoria.aprovado_por || ''}`, 50, y, { align: 'center', width: 495 });
