@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { api } from '../lib/api';
 import Topbar from '../components/Topbar.jsx';
+import RadarChart5S from '../components/RadarChart5S.jsx';
 
 const STATUS_LABEL = { C: 'C', NC: 'NC', PA: 'PA', OM: 'OM', NA: 'NA' };
 
@@ -105,6 +106,58 @@ export default function RelatorioPrevio() {
               </div>
             ))}
           </>
+        )}
+
+        {/* Avaliação do Programa 5S */}
+        {auditoria.dados5s && Number(auditoria.dados5s.media_geral || 0) > 0 && (
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="eyebrow" style={{ color: 'var(--sky)', marginBottom: 2 }}>Programa 5S</div>
+            <div className="card-title" style={{ marginBottom: 14 }}>Desempenho dos Sensos</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, alignItems: 'center' }}>
+              <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                    <span><b>Seiri</b> (Utilização):</span>
+                    <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_utilizacao || 0).toFixed(1)}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                    <span><b>Seiton</b> (Organização):</span>
+                    <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_organizacao || 0).toFixed(1)}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                    <span><b>Seiso</b> (Limpeza):</span>
+                    <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_limpeza || 0).toFixed(1)}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                    <span><b>Seiketsu</b> (Saúde):</span>
+                    <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_saude || 0).toFixed(1)}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                    <span><b>Shitsuke</b> (Auto-Disciplina):</span>
+                    <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_disciplina || 0).toFixed(1)}</b>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 14, padding: '10px 14px', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, color: '#166534', fontSize: 13 }}>MÉDIA GERAL 5S:</span>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: '#15803D' }}>
+                    {Number(auditoria.dados5s.media_geral || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <RadarChart5S medias={auditoria.dados5s} size={250} />
+              </div>
+            </div>
+
+            {auditoria.dados5s.observacoes && (
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 12.5, color: '#334155' }}>
+                <b>Observações do 5S:</b> <i>"{auditoria.dados5s.observacoes}"</i>
+              </div>
+            )}
+          </div>
         )}
 
         {podeDecidir && (

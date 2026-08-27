@@ -78,6 +78,7 @@ export const api = {
   enviar: (id) => request(`/auditorias/${id}/enviar`, { method: 'POST' }),
   decidir: (id, decisao, observacao) =>
     request(`/auditorias/${id}/decidir`, { method: 'POST', body: { decisao, observacao } }),
+  criterios5S: () => request('/auditorias/5s/criterios'),
   pdfUrl: (id) => {
     const token = getToken();
     return `/api/auditorias/${id}/pdf${token ? `?token=${encodeURIComponent(token)}` : ''}`;

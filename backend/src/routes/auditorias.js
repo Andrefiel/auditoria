@@ -5,6 +5,7 @@ const { validateBody, z } = require('../middleware/validate');
 const { gerarRelatorioPDF } = require('../services/pdf');
 const { notificarEnvioParaAprovacao, notificarDecisao } = require('../services/mailer');
 const { registrarLog } = require('../services/auditLog');
+const { criterios5s, calcularMedias5S } = require('../services/cincoS');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -29,6 +30,10 @@ const salvarRespostasSchema = z.object({
       comentario: z.string().max(3000, 'Comentário muito longo').nullable().optional(),
     })
   ).optional(),
+  dados5s: z.object({
+    respostas: z.array(z.any()).optional(),
+    observacoes: z.string().max(4000, 'Observações do 5S muito longas').nullable().optional(),
+  }).optional(),
   conclusao: z.string().max(5000, 'Conclusão muito longa').nullable().optional(),
   auditor_lider: z.string().trim().max(120).nullable().optional(),
   auditor_auxiliar: z.string().trim().max(120).nullable().optional(),
@@ -41,17 +46,36 @@ const decidirSchema = z.object({
   observacao: z.string().max(2000, 'Observação muito longa').nullable().optional(),
 });
 
-// Garante que a coluna auditor_observador exista no PostgreSQL
+// Garante que as colunas e tabelas do 5S existam no PostgreSQL
 let columnMigrated = false;
 async function ensureColumns() {
   if (columnMigrated) return;
   try {
-    await pool.query(`ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS auditor_observador VARCHAR(120);`);
+    await pool.query(`
+      ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS auditor_observador VARCHAR(120);
+      CREATE TABLE IF NOT EXISTS auditorias_5s (
+        auditoria_id      UUID PRIMARY KEY REFERENCES auditorias(id) ON DELETE CASCADE,
+        respostas         JSONB NOT NULL DEFAULT '[]',
+        observacoes       TEXT,
+        media_utilizacao  NUMERIC(4,2) DEFAULT 0,
+        media_organizacao NUMERIC(4,2) DEFAULT 0,
+        media_limpeza     NUMERIC(4,2) DEFAULT 0,
+        media_saude       NUMERIC(4,2) DEFAULT 0,
+        media_disciplina  NUMERIC(4,2) DEFAULT 0,
+        media_geral       NUMERIC(4,2) DEFAULT 0,
+        atualizado_em     TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
     columnMigrated = true;
   } catch (err) {
-    console.error('[MIGRATION] Erro ao verificar coluna auditor_observador:', err.message);
+    console.error('[MIGRATION] Erro ao verificar tabelas 5S/observador:', err.message);
   }
 }
+
+// GET /api/auditorias/5s/criterios — retorna os 25 critérios estruturados do 5S
+router.get('/5s/criterios', (req, res) => {
+  res.json(criterios5s);
+});
 
 async function carregarItensComRespostas(auditoriaId, templateId) {
   const { rows } = await pool.query(
@@ -147,13 +171,21 @@ router.get('/:id', async (req, res) => {
   if (rows.length === 0) return res.status(404).json({ error: 'Auditoria não encontrada' });
   const auditoria = rows[0];
   const itens = await carregarItensComRespostas(auditoria.id, auditoria.template_id);
-  res.json({ ...auditoria, itens });
+
+  const { rows: r5s } = await pool.query(
+    `SELECT respostas, observacoes, media_utilizacao, media_organizacao, media_limpeza, media_saude, media_disciplina, media_geral
+     FROM auditorias_5s WHERE auditoria_id = $1`,
+    [auditoria.id]
+  );
+  const dados5s = r5s.length > 0 ? r5s[0] : null;
+
+  res.json({ ...auditoria, itens, dados5s });
 });
 
-// PUT /api/auditorias/:id/respostas — salva respostas + conclusão + metadados (rascunho)
+// PUT /api/auditorias/:id/respostas — salva respostas + conclusão + metadados + 5S (rascunho)
 router.put('/:id/respostas', validateBody(salvarRespostasSchema), async (req, res) => {
   await ensureColumns();
-  const { respostas, conclusao, auditor_lider, auditor_auxiliar, auditor_observador, setor_unidade } = req.body;
+  const { respostas, dados5s, conclusao, auditor_lider, auditor_auxiliar, auditor_observador, setor_unidade } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -177,6 +209,37 @@ router.put('/:id/respostas', validateBody(salvarRespostasSchema), async (req, re
           [req.params.id, r.requisito_id, r.resultado || null, r.comentario || null]
         );
       }
+    }
+
+    if (dados5s !== undefined) {
+      const respostas5s = Array.isArray(dados5s?.respostas) ? dados5s.respostas : [];
+      const obs5s = dados5s?.observacoes || null;
+      const medias = calcularMedias5S(respostas5s);
+      await client.query(
+        `INSERT INTO auditorias_5s (auditoria_id, respostas, observacoes, media_utilizacao, media_organizacao, media_limpeza, media_saude, media_disciplina, media_geral, atualizado_em)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+         ON CONFLICT (auditoria_id) DO UPDATE SET
+           respostas = EXCLUDED.respostas,
+           observacoes = EXCLUDED.observacoes,
+           media_utilizacao = EXCLUDED.media_utilizacao,
+           media_organizacao = EXCLUDED.media_organizacao,
+           media_limpeza = EXCLUDED.media_limpeza,
+           media_saude = EXCLUDED.media_saude,
+           media_disciplina = EXCLUDED.media_disciplina,
+           media_geral = EXCLUDED.media_geral,
+           atualizado_em = now()`,
+        [
+          req.params.id,
+          JSON.stringify(respostas5s),
+          obs5s,
+          medias.media_utilizacao,
+          medias.media_organizacao,
+          medias.media_limpeza,
+          medias.media_saude,
+          medias.media_disciplina,
+          medias.media_geral,
+        ]
+      );
     }
 
     if (conclusao !== undefined) {
@@ -339,12 +402,19 @@ router.get('/:id/pdf', async (req, res) => {
 
   const itens = await carregarItensComRespostas(auditoria.id, auditoria.template_id);
 
+  const { rows: r5s } = await pool.query(
+    `SELECT respostas, observacoes, media_utilizacao, media_organizacao, media_limpeza, media_saude, media_disciplina, media_geral
+     FROM auditorias_5s WHERE auditoria_id = $1`,
+    [auditoria.id]
+  );
+  const dados5s = r5s.length > 0 ? r5s[0] : null;
+
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(
     'Content-Disposition',
     `inline; filename="auditoria-${auditoria.template_nome}-${auditoria.id}.pdf"`
   );
-  gerarRelatorioPDF(res, auditoria, auditoria.template_nome, itens, auditoria.status === 'aprovado');
+  gerarRelatorioPDF(res, auditoria, auditoria.template_nome, itens, auditoria.status === 'aprovado', dados5s);
 });
 
 module.exports = router;

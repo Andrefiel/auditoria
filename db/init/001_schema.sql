@@ -119,4 +119,21 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_usuario ON seguranca_audit_logs (usuar
 CREATE INDEX IF NOT EXISTS idx_audit_logs_acao ON seguranca_audit_logs (acao);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_criado_em ON seguranca_audit_logs (criado_em DESC);
 
+-- ---------- Programa 5S (Avaliação e Médias por Senso) ----------
+CREATE TABLE IF NOT EXISTS auditorias_5s (
+  auditoria_id      UUID PRIMARY KEY REFERENCES auditorias(id) ON DELETE CASCADE,
+  respostas         JSONB NOT NULL DEFAULT '[]',
+  observacoes       TEXT,
+  media_utilizacao  NUMERIC(4,2) DEFAULT 0,
+  media_organizacao NUMERIC(4,2) DEFAULT 0,
+  media_limpeza     NUMERIC(4,2) DEFAULT 0,
+  media_saude       NUMERIC(4,2) DEFAULT 0,
+  media_disciplina  NUMERIC(4,2) DEFAULT 0,
+  media_geral       NUMERIC(4,2) DEFAULT 0,
+  atualizado_em     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE auditorias_5s ENABLE ROW LEVEL SECURITY;
+CREATE POLICY app_all_5s ON auditorias_5s FOR ALL TO PUBLIC USING (true) WITH CHECK (true);
+
+
 

@@ -1,0 +1,137 @@
+[
+  {
+    "id": "seiri",
+    "titulo": "SEIRI — Senso de Utilização",
+    "sensonome": "Utilização",
+    "criterios": [
+      {
+        "id": "seiri_1",
+        "texto": "Existem somente materiais e/ou objetos necessários para a execução do trabalho?"
+      },
+      {
+        "id": "seiri_2",
+        "texto": "A quantidade dos materiais disponíveis é adequada ao trabalho? (nem falta, nem há excesso)"
+      },
+      {
+        "id": "seiri_3",
+        "texto": "Há algum recurso sendo utilizado de forma incorreta ou improvisada? (calços, suportes, apoios, emendas em fiações, etc)"
+      },
+      {
+        "id": "seiri_4",
+        "texto": "Há previsão de uso para todos os itens mantidos no local de trabalho?"
+      },
+      {
+        "id": "seiri_5",
+        "texto": "As instalações não comprometem a funcionalidade do ambiente? (Existem vazamentos de água? Equipamentos em bom estado?)"
+      }
+    ]
+  },
+  {
+    "id": "seiton",
+    "titulo": "SEITON — Senso de Organização",
+    "sensonome": "Organização",
+    "criterios": [
+      {
+        "id": "seiton_1",
+        "texto": "É possível saber facilmente qual o local de cada material/arquivo? (identificações e sinalizações são suficientes?)"
+      },
+      {
+        "id": "seiton_2",
+        "texto": "A identificação dos locais existentes condiz com o conteúdo armazenado e estão padronizados?"
+      },
+      {
+        "id": "seiton_3",
+        "texto": "Os locais de guarda estão de acordo com a frequência de uso? (acesso facilitado, layout otimizado)"
+      },
+      {
+        "id": "seiton_4",
+        "texto": "Os materiais estão bem estocados, livres de deterioração, oxidação, umidade e quedas?"
+      },
+      {
+        "id": "seiton_5",
+        "texto": "De modo geral, o aspecto visual do setor encontra-se organizado?"
+      }
+    ]
+  },
+  {
+    "id": "seiso",
+    "titulo": "SEISO — Senso de Limpeza",
+    "sensonome": "Limpeza",
+    "criterios": [
+      {
+        "id": "seiso_1",
+        "texto": "Existem equipamentos, utensílios, ferramentas, dispositivos, piso, paredes etc. sujos ou em mau estado de conservação?"
+      },
+      {
+        "id": "seiso_2",
+        "texto": "De modo geral, o setor passa a impressão de ser um ambiente limpo?"
+      },
+      {
+        "id": "seiso_3",
+        "texto": "Existe frequência de limpeza periódica estabelecida para todo o ambiente?"
+      },
+      {
+        "id": "seiso_4",
+        "texto": "A sistemática de limpeza inclui locais de difícil acesso? (verificar locais de difícil acesso)"
+      },
+      {
+        "id": "seiso_5",
+        "texto": "Os coletores são adequados para o local? (verificar quantidade, tamanho, frequência de troca, localização, estado de conservação)"
+      }
+    ]
+  },
+  {
+    "id": "seiketsu",
+    "titulo": "SEIKETSU — Senso de Saúde",
+    "sensonome": "Saúde",
+    "criterios": [
+      {
+        "id": "seiketsu_1",
+        "texto": "Iluminação, temperatura, ventilação e umidade são adequados para o local?"
+      },
+      {
+        "id": "seiketsu_2",
+        "texto": "Os uniformes e calçados estão limpos e adequados para o setor?"
+      },
+      {
+        "id": "seiketsu_3",
+        "texto": "Os EPIs estão sendo utilizados adequadamente?"
+      },
+      {
+        "id": "seiketsu_4",
+        "texto": "Não existem condições inseguras. Quando identificadas são tratadas sistematicamente."
+      },
+      {
+        "id": "seiketsu_5",
+        "texto": "Há evidências de melhorias nos aspectos ergonômicos, de saúde e bem-estar da equipe?"
+      }
+    ]
+  },
+  {
+    "id": "shitsuke",
+    "titulo": "SHITSUKE — Senso de Auto-Disciplina",
+    "sensonome": "Disciplina",
+    "criterios": [
+      {
+        "id": "shitsuke_1",
+        "texto": "Documentos do setor que estão sendo utilizados e os registros estão em dia?"
+      },
+      {
+        "id": "shitsuke_2",
+        "texto": "As informações disponíveis nos quadros de 'Gestão à vista' e 'De olho na informação' estão em dia?"
+      },
+      {
+        "id": "shitsuke_3",
+        "texto": "As bancadas/mesas estão organizadas e devidamente identificadas?"
+      },
+      {
+        "id": "shitsuke_4",
+        "texto": "Durante a troca de turno, após a jornada de trabalho, o padrão de organização se mantém?"
+      },
+      {
+        "id": "shitsuke_5",
+        "texto": "De modo geral, o setor passa a impressão de ser um ambiente disciplinado?"
+      }
+    ]
+  }
+]

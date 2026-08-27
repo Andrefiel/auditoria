@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import Topbar from '../components/Topbar.jsx';
+import RadarChart5S from '../components/RadarChart5S.jsx';
 
 export default function RelatorioFinal() {
   const { id } = useParams();
@@ -71,8 +72,59 @@ export default function RelatorioFinal() {
             </div>
           )}
 
+          {/* Avaliação do Programa 5S */}
+          {auditoria.dados5s && Number(auditoria.dados5s.media_geral || 0) > 0 && (
+            <>
+              <div className="divider" />
+              <div className="card-title">Avaliação do Programa 5S</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, alignItems: 'center', marginTop: 12 }}>
+                <div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                      <span><b>Seiri</b> (Utilização):</span>
+                      <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_utilizacao || 0).toFixed(1)}</b>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                      <span><b>Seiton</b> (Organização):</span>
+                      <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_organizacao || 0).toFixed(1)}</b>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                      <span><b>Seiso</b> (Limpeza):</span>
+                      <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_limpeza || 0).toFixed(1)}</b>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                      <span><b>Seiketsu</b> (Saúde):</span>
+                      <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_saude || 0).toFixed(1)}</b>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, fontSize: 13 }}>
+                      <span><b>Shitsuke</b> (Auto-Disciplina):</span>
+                      <b style={{ color: '#0284C7' }}>{Number(auditoria.dados5s.media_disciplina || 0).toFixed(1)}</b>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 14, padding: '10px 14px', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, color: '#166534', fontSize: 13 }}>MÉDIA GERAL 5S:</span>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: '#15803D' }}>
+                      {Number(auditoria.dados5s.media_geral || 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'center' }}>
+                  <RadarChart5S medias={auditoria.dados5s} size={250} />
+                </div>
+              </div>
+
+              {auditoria.dados5s.observacoes && (
+                <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--line)', fontSize: 12.5, color: '#334155' }}>
+                  <b>Observações do 5S:</b> <i>"{auditoria.dados5s.observacoes}"</i>
+                </div>
+              )}
+            </>
+          )}
+
           <div className="divider" />
-          <div className="card-title">Conclusão</div>
+          <div className="card-title">Conclusão Geral</div>
           <div className="conclusao-box">{auditoria.conclusao || 'Nenhuma conclusão registrada.'}</div>
 
           <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px dashed var(--line)', textAlign: 'center' }}>
