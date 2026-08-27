@@ -65,8 +65,11 @@ export const api = {
     request(`/templates/${templateId}/itens/${itemId}`, { method: 'DELETE' }),
   ativarTemplate: (templateId) => request(`/templates/${templateId}/ativar`, { method: 'POST' }),
 
-  criarAuditoria: (template_id, setor_unidade, auditor_lider) =>
-    request('/auditorias', { method: 'POST', body: { template_id, setor_unidade, auditor_lider } }),
+  criarAuditoria: (template_id, setor_unidade, auditor_lider, auditor_auxiliar, auditor_observador) =>
+    request('/auditorias', {
+      method: 'POST',
+      body: { template_id, setor_unidade, auditor_lider, auditor_auxiliar, auditor_observador },
+    }),
   minhasAuditorias: () => request('/auditorias/mine'),
   pendentes: () => request('/auditorias/pendentes'),
   auditoria: (id) => request(`/auditorias/${id}`),

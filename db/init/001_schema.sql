@@ -41,8 +41,9 @@ CREATE TABLE auditorias (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   template_id      INT NOT NULL REFERENCES templates(id),
   setor_unidade    VARCHAR(150) NOT NULL,          -- ex: 'Recepção — Unidade Aldeota'
-  auditor_lider     VARCHAR(120),                   -- preenchido só se o usuário é do grupo auditores_lideres
-  auditor_auxiliar  VARCHAR(120) NOT NULL,           -- usuário logado (username AD)
+  auditor_lider     VARCHAR(120),                   -- Auditor líder responsável
+  auditor_auxiliar  VARCHAR(120) NOT NULL,           -- Auditor auxiliar (editável/manual)
+  auditor_observador VARCHAR(120),                  -- Auditor observador (opcional/manual)
   conclusao        TEXT,
   status           VARCHAR(24) NOT NULL DEFAULT 'rascunho'
                      CHECK (status IN ('rascunho','aguardando_aprovacao','aprovado','reprovado')),

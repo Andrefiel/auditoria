@@ -39,11 +39,11 @@ function gerarRelatorioPDF(stream, auditoria, templateNome, itens, aprovado) {
   doc.text(auditoria.auditor_auxiliar || '-', 300, metaY + 13);
 
   doc.fontSize(9).fillColor(INK_SOFT).font('Helvetica-Bold');
-  doc.text('DATA', 50, metaY + 35);
-  doc.text('STATUS', 300, metaY + 35);
+  doc.text('AUDITOR OBSERVADOR', 50, metaY + 35);
+  doc.text('DATA DA AUDITORIA', 300, metaY + 35);
   doc.fillColor('#000').font('Helvetica').fontSize(11);
-  doc.text(new Date(auditoria.criado_em).toLocaleString('pt-BR'), 50, metaY + 48);
-  doc.text(aprovado ? 'Aprovado' : 'Aguardando aprovação', 300, metaY + 48);
+  doc.text(auditoria.auditor_observador || '—', 50, metaY + 48);
+  doc.text(new Date(auditoria.criado_em).toLocaleString('pt-BR'), 300, metaY + 48);
 
   doc.moveTo(50, metaY + 75).lineTo(545, metaY + 75).strokeColor(LINE).stroke();
 
@@ -103,13 +103,17 @@ function gerarRelatorioPDF(stream, auditoria, templateNome, itens, aprovado) {
   y = doc.y + 30;
 
   if (aprovado) {
-    if (y > 700) { doc.addPage(); y = 50; }
+    if (y > 670) { doc.addPage(); y = 50; }
     doc.moveTo(50, y).lineTo(545, y).strokeColor(LINE).dash(2, { space: 2 }).stroke().undash();
-    y += 14;
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#000')
-      .text(`Aprovado digitalmente por ${auditoria.aprovado_por || ''}`, 50, y);
-    doc.font('Helvetica').fontSize(9).fillColor(INK_SOFT)
-      .text(auditoria.aprovado_em ? new Date(auditoria.aprovado_em).toLocaleString('pt-BR') : '', 50, y + 14);
+    y += 20;
+    doc.font('Helvetica').fontSize(9.5).fillColor(INK_SOFT)
+      .text('ASSINATURA DIGITAL / APROVAÇÃO DO LAUDO', 50, y, { align: 'center', width: 495, characterSpacing: 1 });
+    y += 16;
+    doc.font('Helvetica-Bold').fontSize(13.5).fillColor(NAVY)
+      .text(`Aprovado digitalmente por: ${auditoria.aprovado_por || ''}`, 50, y, { align: 'center', width: 495 });
+    y += 18;
+    doc.font('Helvetica').fontSize(10).fillColor(INK_SOFT)
+      .text(auditoria.aprovado_em ? `Data e hora da aprovação: ${new Date(auditoria.aprovado_em).toLocaleString('pt-BR')}` : '', 50, y, { align: 'center', width: 495 });
   }
 
   doc.end();

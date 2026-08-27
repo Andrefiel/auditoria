@@ -16,6 +16,8 @@ export default function Picker() {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [unidade, setUnidade] = useState('');
   const [auditorLider, setAuditorLider] = useState(AUDITORES_LIDERES[0]);
+  const [auditorAuxiliar, setAuditorAuxiliar] = useState('');
+  const [auditorObservador, setAuditorObservador] = useState('');
 
   useEffect(() => {
     api.templates().then(setTemplates).catch((e) => setError(e.message));
@@ -27,6 +29,8 @@ export default function Picker() {
     // Se o usuário logado for um dos líderes, pré-seleciona ele, senão o primeiro da lista
     const liderMatch = AUDITORES_LIDERES.find((l) => l.toLowerCase() === user?.displayName?.toLowerCase());
     setAuditorLider(liderMatch || AUDITORES_LIDERES[0]);
+    setAuditorAuxiliar(user?.displayName || '');
+    setAuditorObservador('');
     setError('');
   }
 
@@ -39,7 +43,13 @@ export default function Picker() {
     setCreating(true);
     setError('');
     try {
-      const { id } = await api.criarAuditoria(selectedTemplate.id, unidade.trim(), auditorLider);
+      const { id } = await api.criarAuditoria(
+        selectedTemplate.id,
+        unidade.trim(),
+        auditorLider,
+        auditorAuxiliar.trim() || user?.displayName,
+        auditorObservador.trim() || null
+      );
       navigate(`/auditorias/${id}/preencher`);
     } catch (err) {
       setError(err.message);
@@ -138,13 +148,25 @@ export default function Picker() {
               </div>
 
               <div className="field">
-                <label>Auditor Auxiliar (Você)</label>
+                <label>Auditor Auxiliar</label>
                 <input
                   type="text"
-                  value={user?.displayName || ''}
-                  readOnly
-                  style={{ background: '#F5F7FA', color: 'var(--ink-soft)' }}
+                  value={auditorAuxiliar}
+                  onChange={(e) => setAuditorAuxiliar(e.target.value)}
+                  placeholder="Nome do auditor auxiliar"
                 />
+                <div className="field-hint">Pode ser preenchido ou alterado manualmente.</div>
+              </div>
+
+              <div className="field">
+                <label>Auditor Observador (Opcional)</label>
+                <input
+                  type="text"
+                  value={auditorObservador}
+                  onChange={(e) => setAuditorObservador(e.target.value)}
+                  placeholder="Ex: Nome do auditor observador ou trainee"
+                />
+                <div className="field-hint">Preencha caso haja um auditor observador acompanhando.</div>
               </div>
 
               <div className="btn-row" style={{ marginTop: 20 }}>

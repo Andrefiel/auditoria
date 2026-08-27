@@ -17,6 +17,8 @@ const criarAuditoriaSchema = z.object({
   template_id: z.number({ required_error: 'template_id é obrigatório' }).int().positive(),
   setor_unidade: z.string({ required_error: 'setor_unidade é obrigatório' }).trim().min(2, 'Setor/unidade muito curto').max(150, 'Setor/unidade muito longo'),
   auditor_lider: z.string().trim().max(120).optional().nullable(),
+  auditor_auxiliar: z.string().trim().max(120).optional().nullable(),
+  auditor_observador: z.string().trim().max(120).optional().nullable(),
 });
 
 const salvarRespostasSchema = z.object({
@@ -29,6 +31,8 @@ const salvarRespostasSchema = z.object({
   ).optional(),
   conclusao: z.string().max(5000, 'Conclusão muito longa').nullable().optional(),
   auditor_lider: z.string().trim().max(120).nullable().optional(),
+  auditor_auxiliar: z.string().trim().max(120).nullable().optional(),
+  auditor_observador: z.string().trim().max(120).nullable().optional(),
   setor_unidade: z.string().trim().min(2).max(150).optional(),
 });
 
@@ -36,6 +40,18 @@ const decidirSchema = z.object({
   decisao: z.enum(['aprovado', 'reprovado'], { required_error: "decisao deve ser 'aprovado' ou 'reprovado'" }),
   observacao: z.string().max(2000, 'Observação muito longa').nullable().optional(),
 });
+
+// Garante que a coluna auditor_observador exista no PostgreSQL
+let columnMigrated = false;
+async function ensureColumns() {
+  if (columnMigrated) return;
+  try {
+    await pool.query(`ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS auditor_observador VARCHAR(120);`);
+    columnMigrated = true;
+  } catch (err) {
+    console.error('[MIGRATION] Erro ao verificar coluna auditor_observador:', err.message);
+  }
+}
 
 async function carregarItensComRespostas(auditoriaId, templateId) {
   const { rows } = await pool.query(
@@ -54,18 +70,22 @@ async function carregarItensComRespostas(auditoriaId, templateId) {
 
 // POST /api/auditorias — cria um rascunho novo
 router.post('/', validateBody(criarAuditoriaSchema), async (req, res) => {
-  const { template_id, setor_unidade, auditor_lider } = req.body;
+  await ensureColumns();
+  const { template_id, setor_unidade, auditor_lider, auditor_auxiliar, auditor_observador } = req.body;
   const liderEscolhido = auditor_lider || (req.user.isLider ? req.user.displayName : null);
+  const auxiliarEscolhido = auditor_auxiliar?.trim() || req.user.displayName;
+  const observadorEscolhido = auditor_observador?.trim() || null;
 
   const { rows } = await pool.query(
-    `INSERT INTO auditorias (template_id, setor_unidade, auditor_lider, auditor_auxiliar, criado_por)
-     VALUES ($1,$2,$3,$4,$5)
+    `INSERT INTO auditorias (template_id, setor_unidade, auditor_lider, auditor_auxiliar, auditor_observador, criado_por)
+     VALUES ($1,$2,$3,$4,$5,$6)
      RETURNING id`,
     [
       template_id,
       setor_unidade,
       liderEscolhido,
-      req.user.displayName,
+      auxiliarEscolhido,
+      observadorEscolhido,
       req.user.username,
     ]
   );
@@ -77,7 +97,7 @@ router.post('/', validateBody(criarAuditoriaSchema), async (req, res) => {
     recurso: 'auditoria',
     recurso_id: novaId,
     req,
-    detalhes: { template_id, setor_unidade, auditor_lider: liderEscolhido },
+    detalhes: { template_id, setor_unidade, auditor_lider: liderEscolhido, auditor_auxiliar: auxiliarEscolhido, auditor_observador: observadorEscolhido },
   });
 
   res.status(201).json({ id: novaId });
@@ -85,8 +105,9 @@ router.post('/', validateBody(criarAuditoriaSchema), async (req, res) => {
 
 // GET /api/auditorias/mine — minhas auditorias
 router.get('/mine', async (req, res) => {
+  await ensureColumns();
   const { rows } = await pool.query(
-    `SELECT a.id, a.setor_unidade, a.status, a.criado_em, t.nome AS template_nome
+    `SELECT a.id, a.setor_unidade, a.status, a.criado_em, a.auditor_auxiliar, a.auditor_observador, t.nome AS template_nome
      FROM auditorias a JOIN templates t ON t.id = a.template_id
      WHERE a.criado_por = $1
      ORDER BY a.atualizado_em DESC`,
@@ -97,8 +118,9 @@ router.get('/mine', async (req, res) => {
 
 // GET /api/auditorias/pendentes — fila de aprovação (só auditores_lideres)
 router.get('/pendentes', requireLider, async (req, res) => {
+  await ensureColumns();
   const { rows } = await pool.query(
-    `SELECT a.id, a.setor_unidade, a.criado_em, a.auditor_auxiliar, t.nome AS template_nome,
+    `SELECT a.id, a.setor_unidade, a.criado_em, a.auditor_auxiliar, a.auditor_observador, t.nome AS template_nome,
             (SELECT COUNT(*) FROM auditoria_respostas ar
               WHERE ar.auditoria_id = a.id AND ar.resultado IN ('NC','PA'))::int AS alertas
      FROM auditorias a JOIN templates t ON t.id = a.template_id
@@ -109,13 +131,14 @@ router.get('/pendentes', requireLider, async (req, res) => {
 });
 
 const AUDITORIA_SELECT_FIELDS = `
-  a.id, a.template_id, a.setor_unidade, a.auditor_lider, a.auditor_auxiliar,
+  a.id, a.template_id, a.setor_unidade, a.auditor_lider, a.auditor_auxiliar, a.auditor_observador,
   a.conclusao, a.status, a.criado_por, a.aprovado_por, a.aprovado_em,
   a.criado_em, a.atualizado_em, t.nome AS template_nome
 `;
 
 // GET /api/auditorias/:id — detalhe completo
 router.get('/:id', async (req, res) => {
+  await ensureColumns();
   const { rows } = await pool.query(
     `SELECT ${AUDITORIA_SELECT_FIELDS} FROM auditorias a
      JOIN templates t ON t.id = a.template_id WHERE a.id = $1`,
@@ -129,7 +152,8 @@ router.get('/:id', async (req, res) => {
 
 // PUT /api/auditorias/:id/respostas — salva respostas + conclusão + metadados (rascunho)
 router.put('/:id/respostas', validateBody(salvarRespostasSchema), async (req, res) => {
-  const { respostas, conclusao, auditor_lider, setor_unidade } = req.body;
+  await ensureColumns();
+  const { respostas, conclusao, auditor_lider, auditor_auxiliar, auditor_observador, setor_unidade } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -161,6 +185,12 @@ router.put('/:id/respostas', validateBody(salvarRespostasSchema), async (req, re
     if (auditor_lider !== undefined) {
       await client.query(`UPDATE auditorias SET auditor_lider = $1 WHERE id = $2`, [auditor_lider, req.params.id]);
     }
+    if (auditor_auxiliar !== undefined) {
+      await client.query(`UPDATE auditorias SET auditor_auxiliar = $1 WHERE id = $2`, [auditor_auxiliar, req.params.id]);
+    }
+    if (auditor_observador !== undefined) {
+      await client.query(`UPDATE auditorias SET auditor_observador = $1 WHERE id = $2`, [auditor_observador, req.params.id]);
+    }
     if (setor_unidade !== undefined) {
       await client.query(`UPDATE auditorias SET setor_unidade = $1 WHERE id = $2`, [setor_unidade, req.params.id]);
     }
@@ -180,6 +210,7 @@ router.put('/:id/respostas', validateBody(salvarRespostasSchema), async (req, re
 
 // POST /api/auditorias/:id/enviar — gera o relatório prévio e manda pra aprovação
 router.post('/:id/enviar', async (req, res) => {
+  await ensureColumns();
   const { rows } = await pool.query(
     `SELECT ${AUDITORIA_SELECT_FIELDS} FROM auditorias a
      JOIN templates t ON t.id = a.template_id WHERE a.id = $1`,
@@ -193,6 +224,18 @@ router.post('/:id/enviar', async (req, res) => {
   if (semResposta.length > 0) {
     return res.status(422).json({ error: `${semResposta.length} item(ns) ainda não avaliado(s)` });
   }
+
+  // Validação obrigatória de justificativa/comentário para NC, PA e NA
+  const semJustificativa = itens.filter(
+    (i) => ['NA', 'NC', 'PA'].includes(i.resultado) && (!i.comentario || !i.comentario.trim())
+  );
+  if (semJustificativa.length > 0) {
+    const itensPendentes = semJustificativa.map((i) => i.codigo || i.nome).slice(0, 5).join(', ');
+    return res.status(422).json({
+      error: `Justificativa/comentário obrigatório para itens marcados como NC, PA ou NA (${semJustificativa.length} item(ns) pendente(s): ${itensPendentes})`,
+    });
+  }
+
   if (!auditoria.conclusao || !auditoria.conclusao.trim()) {
     return res.status(422).json({ error: 'A conclusão é obrigatória antes de enviar' });
   }

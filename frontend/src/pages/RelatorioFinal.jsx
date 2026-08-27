@@ -35,7 +35,6 @@ export default function RelatorioFinal() {
         </div>
 
         <div className="report-header">
-          {auditoria.status === 'aprovado' && <div className="stamp">✓ APROVADO</div>}
           <div className="eyebrow" style={{ color: 'var(--sky)' }}>Relatório final</div>
           <h1 style={{ color: 'white' }}>Auditoria Interna — {auditoria.template_nome}</h1>
           <p className="sub" style={{ color: 'rgba(255,255,255,.65)' }}>{auditoria.setor_unidade}</p>
@@ -43,10 +42,10 @@ export default function RelatorioFinal() {
         <div className="report-body">
           <div className="report-grid">
             <div className="report-field"><label>Auditor(a) Líder</label><div className="v">{auditoria.auditor_lider || '—'}</div></div>
-            <div className="report-field"><label>Auditor auxiliar</label><div className="v">{auditoria.auditor_auxiliar}</div></div>
-            <div className="report-field"><label>Aprovado por</label><div className="v">{auditoria.aprovado_por || '—'}</div></div>
-            <div className="report-field"><label>Data da aprovação</label>
-              <div className="v">{auditoria.aprovado_em ? new Date(auditoria.aprovado_em).toLocaleDateString('pt-BR') : '—'}</div>
+            <div className="report-field"><label>Auditor auxiliar</label><div className="v">{auditoria.auditor_auxiliar || '—'}</div></div>
+            <div className="report-field"><label>Auditor observador</label><div className="v">{auditoria.auditor_observador || '—'}</div></div>
+            <div className="report-field"><label>Data da auditoria</label>
+              <div className="v">{new Date(auditoria.criado_em).toLocaleDateString('pt-BR')}</div>
             </div>
           </div>
 
@@ -54,8 +53,15 @@ export default function RelatorioFinal() {
           <div className="card-title">Itens avaliados ({auditoria.itens.length})</div>
           {auditoria.itens.map((item) => (
             <div key={item.requisito_id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5 }}>
-              <span>{item.nome}</span>
-              <span className="mono" style={{ fontWeight: 700, color: 'var(--ink-soft)' }}>{item.resultado}</span>
+              <div>
+                <span>{item.nome}</span>
+                {item.comentario && (
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', fontStyle: 'italic', marginTop: 3 }}>
+                    "{item.comentario}"
+                  </div>
+                )}
+              </div>
+              <span className="mono" style={{ fontWeight: 700, color: 'var(--ink-soft)', flexShrink: 0 }}>{item.resultado}</span>
             </div>
           ))}
 
@@ -69,13 +75,21 @@ export default function RelatorioFinal() {
           <div className="card-title">Conclusão</div>
           <div className="conclusao-box">{auditoria.conclusao || 'Nenhuma conclusão registrada.'}</div>
 
-          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px dashed var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
-              Aprovado digitalmente por<br /><b style={{ color: 'var(--ink)', fontSize: 13 }}>{auditoria.aprovado_por}</b>
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px dashed var(--line)', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 600 }}>
+              Assinatura Digital / Aprovação do Laudo
             </div>
-            <a href={api.pdfUrl(id)} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ flex: 'none', padding: '10px 20px', textDecoration: 'none' }}>
-              Baixar PDF
-            </a>
+            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--navy)', marginTop: 6 }}>
+              Aprovado digitalmente por: {auditoria.aprovado_por}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>
+              {auditoria.aprovado_em ? `Data e hora da aprovação: ${new Date(auditoria.aprovado_em).toLocaleString('pt-BR')}` : ''}
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <a href={api.pdfUrl(id)} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ display: 'inline-block', padding: '10px 24px', textDecoration: 'none' }}>
+                📄 Baixar PDF do Laudo Oficial
+              </a>
+            </div>
           </div>
         </div>
       </div>

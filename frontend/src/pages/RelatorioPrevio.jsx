@@ -59,9 +59,12 @@ export default function RelatorioPrevio() {
             <a onClick={() => navigate('/')}>← Painel</a> · Relatório prévio
           </div>
           <h1>{auditoria.template_nome} — {auditoria.setor_unidade}</h1>
-          <p className="sub">
-            {auditoria.auditor_auxiliar} · {new Date(auditoria.criado_em).toLocaleDateString('pt-BR')}
-          </p>
+          <div style={{ marginTop: 6, fontSize: 13, color: 'var(--ink-soft)', display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+            <span><b>Líder:</b> {auditoria.auditor_lider || '—'}</span>
+            <span><b>Auxiliar:</b> {auditoria.auditor_auxiliar || '—'}</span>
+            {auditoria.auditor_observador && <span><b>Observador:</b> {auditoria.auditor_observador}</span>}
+            <span><b>Data:</b> {new Date(auditoria.criado_em).toLocaleDateString('pt-BR')}</span>
+          </div>
         </div>
 
         {error && <div className="error-banner">{error}</div>}
