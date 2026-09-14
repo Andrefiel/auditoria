@@ -13,8 +13,13 @@ const BRANDING_UPLOAD_DIR = process.env.UPLOADS_DIR
   ? path.join(process.env.UPLOADS_DIR, 'branding')
   : path.join(__dirname, '../../uploads/branding');
 
-if (!fs.existsSync(BRANDING_UPLOAD_DIR)) {
-  fs.mkdirSync(BRANDING_UPLOAD_DIR, { recursive: true });
+// Tenta criar o diretório de uploads de forma segura sem travar a inicialização
+try {
+  if (!fs.existsSync(BRANDING_UPLOAD_DIR)) {
+    fs.mkdirSync(BRANDING_UPLOAD_DIR, { recursive: true });
+  }
+} catch (err) {
+  console.warn('[CONFIG] Aviso ao criar pasta de uploads de branding:', err.message);
 }
 
 // Suporte opcional a Multer com fallback seguro
@@ -168,12 +173,21 @@ router.post('/upload', requireAuth, requireLider, (req, res, next) => {
       return res.status(400).json({ error: validation.error });
     }
 
+    let publicUrl = '';
     const safeFileName = validation.safeFileName;
-    const destPath = path.join(BRANDING_UPLOAD_DIR, safeFileName);
 
-    await fs.promises.writeFile(destPath, fileBuffer);
-
-    const publicUrl = `/uploads/branding/${safeFileName}`;
+    // Tenta salvar em disco; se houver problema de permissão, usa dataUrl
+    try {
+      if (!fs.existsSync(BRANDING_UPLOAD_DIR)) {
+        fs.mkdirSync(BRANDING_UPLOAD_DIR, { recursive: true });
+      }
+      const destPath = path.join(BRANDING_UPLOAD_DIR, safeFileName);
+      await fs.promises.writeFile(destPath, fileBuffer);
+      publicUrl = `/uploads/branding/${safeFileName}`;
+    } catch (fsErr) {
+      console.warn('[CONFIG] Permissão em disco restrita, usando Data URL:', fsErr.message);
+      publicUrl = `data:${mimeType || 'image/png'};base64,${fileBuffer.toString('base64')}`;
+    }
 
     registrarLog({
       usuario: req.user.username,

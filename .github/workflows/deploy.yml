@@ -47,6 +47,11 @@ jobs:
           LIDERES_NOTIFY_EMAIL=${{ vars.LIDERES_NOTIFY_EMAIL }}
           EOF
 
+      - name: Garantir diretórios e permissões de dados e uploads
+        run: |
+          mkdir -p /opt/Auditoria/uploads/branding /opt/Auditoria/postgres-data || true
+          chmod -R 777 /opt/Auditoria/uploads || true
+
       - name: Build e subida dos containers
         run: docker compose up -d --build --remove-orphans
 
