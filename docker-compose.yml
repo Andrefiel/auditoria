@@ -1,3 +1,5 @@
+name: auditoria
+
 networks:
   auditoria-net:
     driver: bridge
