@@ -135,5 +135,23 @@ CREATE TABLE IF NOT EXISTS auditorias_5s (
 ALTER TABLE auditorias_5s ENABLE ROW LEVEL SECURITY;
 CREATE POLICY app_all_5s ON auditorias_5s FOR ALL TO PUBLIC USING (true) WITH CHECK (true);
 
+-- ---------- Configurações e Identidade Visual do Sistema ----------
+CREATE TABLE IF NOT EXISTS sistema_configuracoes (
+  chave       VARCHAR(60) PRIMARY KEY,
+  valor       TEXT NOT NULL,
+  tipo        VARCHAR(20) NOT NULL DEFAULT 'string',
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE sistema_configuracoes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY app_all_config ON sistema_configuracoes FOR ALL TO PUBLIC USING (true) WITH CHECK (true);
+
+INSERT INTO sistema_configuracoes (chave, valor, tipo) VALUES
+  ('login_logo_url', '', 'imagem_url'),
+  ('login_banner_url', '', 'imagem_url'),
+  ('login_titulo', 'Excelência diagnóstica e rigor técnico.', 'string'),
+  ('login_subtitulo', 'Plataforma de Auditoria Interna e Qualidade Contínua.', 'string')
+ON CONFLICT (chave) DO NOTHING;
+
+
 
 

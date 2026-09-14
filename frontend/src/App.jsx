@@ -9,6 +9,7 @@ import Preenchimento from './pages/Preenchimento.jsx';
 import RelatorioPrevio from './pages/RelatorioPrevio.jsx';
 import RelatorioFinal from './pages/RelatorioFinal.jsx';
 import Admin from './pages/Admin.jsx';
+import Configuracoes from './pages/Configuracoes.jsx';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -29,6 +30,7 @@ function AppRoutes() {
       <Route path="/auditorias/:id/previo" element={<PrivateRoute><RelatorioPrevio /></PrivateRoute>} />
       <Route path="/auditorias/:id/final" element={<PrivateRoute><RelatorioFinal /></PrivateRoute>} />
       <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
+      <Route path="/configuracoes" element={<PrivateRoute><Configuracoes /></PrivateRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

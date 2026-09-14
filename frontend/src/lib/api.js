@@ -79,6 +79,24 @@ export const api = {
   decidir: (id, decisao, observacao) =>
     request(`/auditorias/${id}/decidir`, { method: 'POST', body: { decisao, observacao } }),
   criterios5S: () => request('/auditorias/5s/criterios'),
+  configPublic: () => request('/config/public'),
+  configList: () => request('/config'),
+  salvarConfig: (configuracoes) => request('/config', { method: 'PUT', body: { configuracoes } }),
+  uploadBranding: async (file) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/config/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || 'Erro no upload');
+    return data;
+  },
   pdfUrl: (id) => {
     const token = getToken();
     return `/api/auditorias/${id}/pdf${token ? `?token=${encodeURIComponent(token)}` : ''}`;

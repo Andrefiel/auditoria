@@ -4,9 +4,11 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
+const path = require('path');
 const authRoutes = require('./routes/auth');
 const templatesRoutes = require('./routes/templates');
 const auditoriasRoutes = require('./routes/auditorias');
+const configRoutes = require('./routes/config');
 
 const app = express();
 
@@ -27,6 +29,10 @@ app.use(cors());
 // Limite no tamanho do corpo das requisições (proteção contra DoS por payload gigante)
 app.use(express.json({ limit: '2mb' }));
 
+// Servir arquivos de uploads estaticamente (logos, banners e anexos)
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(UPLOADS_DIR));
+
 // Rate Limiting Global da API (máximo de 300 requisições por minuto por IP)
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
@@ -44,6 +50,7 @@ app.get('/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString
 app.use('/api/auth', authRoutes);
 app.use('/api/templates', templatesRoutes);
 app.use('/api/auditorias', auditoriasRoutes);
+app.use('/api/config', configRoutes);
 
 // Middleware global de tratamento de erros seguro (sem expor stack traces em produção)
 app.use((err, req, res, next) => {
