@@ -1,10 +1,9 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const multer = require('multer');
 const { pool } = require('../db');
 const { requireAuth, requireLider } = require('../middleware/auth');
-const { validateAndSanitizeFile } = require('../middleware/upload');
+const { validateAndSanitizeFile, MAX_FILE_SIZE } = require('../middleware/upload');
 const { registrarLog } = require('../services/auditLog');
 
 const router = express.Router();
@@ -18,11 +17,18 @@ if (!fs.existsSync(BRANDING_UPLOAD_DIR)) {
   fs.mkdirSync(BRANDING_UPLOAD_DIR, { recursive: true });
 }
 
-// Configuração do Multer para upload em memória antes de validação
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-});
+// Suporte opcional a Multer com fallback seguro
+let multerUpload = (req, res, next) => next();
+try {
+  const multer = require('multer');
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_FILE_SIZE },
+  });
+  multerUpload = upload.single('file');
+} catch (err) {
+  console.warn('[CONFIG] Multer não carregado, usando parser alternativo.');
+}
 
 let configMigrated = false;
 async function ensureConfigTable() {
@@ -124,13 +130,40 @@ router.put('/', requireAuth, requireLider, async (req, res) => {
 });
 
 // POST /api/config/upload — upload de imagem para branding (logo ou banner)
-router.post('/upload', requireAuth, requireLider, upload.single('file'), async (req, res) => {
+router.post('/upload', requireAuth, requireLider, (req, res, next) => {
+  multerUpload(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || 'Erro no upload' });
+    next();
+  });
+}, async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    let fileBuffer = null;
+    let fileName = '';
+    let mimeType = '';
+
+    if (req.file) {
+      fileBuffer = req.file.buffer;
+      fileName = req.file.originalname;
+      mimeType = req.file.mimetype;
+    } else if (req.body && req.body.dataUrl) {
+      const matches = req.body.dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        mimeType = matches[1];
+        fileBuffer = Buffer.from(matches[2], 'base64');
+        fileName = req.body.fileName || `image_${Date.now()}`;
+      }
     }
 
-    const validation = validateAndSanitizeFile(req.file);
+    if (!fileBuffer) {
+      return res.status(400).json({ error: 'Nenhum arquivo ou imagem válida enviada' });
+    }
+
+    const validation = validateAndSanitizeFile({
+      originalname: fileName,
+      mimetype: mimeType,
+      size: fileBuffer.length,
+    });
+
     if (!validation.valid) {
       return res.status(400).json({ error: validation.error });
     }
@@ -138,7 +171,7 @@ router.post('/upload', requireAuth, requireLider, upload.single('file'), async (
     const safeFileName = validation.safeFileName;
     const destPath = path.join(BRANDING_UPLOAD_DIR, safeFileName);
 
-    await fs.promises.writeFile(destPath, req.file.buffer);
+    await fs.promises.writeFile(destPath, fileBuffer);
 
     const publicUrl = `/uploads/branding/${safeFileName}`;
 
@@ -148,7 +181,7 @@ router.post('/upload', requireAuth, requireLider, upload.single('file'), async (
       recurso: 'branding',
       recurso_id: safeFileName,
       req,
-      detalhes: { originalName: req.file.originalname, safeFileName, size: req.file.size },
+      detalhes: { originalName: fileName, safeFileName, size: fileBuffer.length },
     });
 
     res.json({ ok: true, url: publicUrl, fileName: safeFileName });
