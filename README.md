@@ -44,7 +44,7 @@ docker compose exec backend node scripts/seed.js
 
 O container do frontend expõe a porta `17430` só em `127.0.0.1` — ele **não** é o nginx público.
 Como seu nginx já roda direto no servidor (fora do Docker), use o arquivo pronto em
-[`nginx-host/auditoria.suporteargos.com.br.conf`](./nginx-host/auditoria.suporteargos.com.br.conf)
+[`nginx-host/auditoria.xyz.com.br.conf`](./nginx-host/auditoria.xyz.com.br.conf)
 como reverse proxy pra essa porta. Passo a passo completo no [`DEPLOY.md`](./DEPLOY.md).
 
 ## Desenvolvimento local (sem Docker)
