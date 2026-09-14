@@ -71,7 +71,7 @@ router.get('/public', async (req, res) => {
     res.json({
       login_logo_url: configMap.login_logo_url || '',
       login_banner_url: configMap.login_banner_url || '',
-      login_titulo: configMap.login_titulo || 'Excelência diagnóstica e rigor técnico.',
+      login_titulo: (configMap.login_titulo === 'Excelência diagnóstica e rigor técnico.' ? '' : (configMap.login_titulo || '')),
       login_subtitulo: configMap.login_subtitulo || 'Plataforma de Auditoria Interna e Qualidade Contínua.',
     });
   } catch (err) {

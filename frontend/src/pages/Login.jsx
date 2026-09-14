@@ -78,13 +78,15 @@ export default function Login() {
 
             <div className="login-badge-pill">SISTEMA DE QUALIDADE & AUDITORIA</div>
 
-            <h2 className="login-side-title">{branding.login_titulo}</h2>
-            <p className="login-side-sub">{branding.login_subtitulo}</p>
+            {branding.login_subtitulo && (
+              <p className="login-side-sub" style={{ fontSize: 14, marginTop: 10 }}>
+                {branding.login_subtitulo}
+              </p>
+            )}
           </div>
 
           <div className="login-side-footer">
-            <span>ARGOS AUDITORIA v2.4</span>
-            <span>PADRÃO PALC / ONA</span>
+            <span>ARGOS AUDITORIA</span>
           </div>
         </div>
 
@@ -109,31 +111,25 @@ export default function Login() {
 
               <div className="field">
                 <label>Usuário</label>
-                <div className="input-icon-wrap">
-                  <span className="input-icon">👤</span>
-                  <input
-                    type="text"
-                    placeholder="Digite seu usuário"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoFocus
-                    required
-                  />
-                </div>
+                <input
+                  type="text"
+                  placeholder="Digite seu usuário"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoFocus
+                  required
+                />
               </div>
 
               <div className="field">
                 <label>Senha</label>
-                <div className="input-icon-wrap">
-                  <span className="input-icon">🔒</span>
-                  <input
-                    type="password"
-                    placeholder="Digite sua senha"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
+                <input
+                  type="password"
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
               </div>
 
               {error && <div className="error-banner">{error}</div>}

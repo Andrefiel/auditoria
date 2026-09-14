@@ -7,7 +7,7 @@ export default function Configuracoes() {
   const navigate = useNavigate();
   const [logoUrl, setLogoUrl] = useState('');
   const [bannerUrl, setBannerUrl] = useState('');
-  const [titulo, setTitulo] = useState('Excelência diagnóstica e rigor técnico.');
+  const [titulo, setTitulo] = useState('');
   const [subtitulo, setSubtitulo] = useState('Plataforma de Auditoria Interna e Qualidade Contínua.');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -27,7 +27,7 @@ export default function Configuracoes() {
       const data = await api.configPublic();
       setLogoUrl(data.login_logo_url || '');
       setBannerUrl(data.login_banner_url || '');
-      setTitulo(data.login_titulo || 'Excelência diagnóstica e rigor técnico.');
+      setTitulo(data.login_titulo || '');
       setSubtitulo(data.login_subtitulo || 'Plataforma de Auditoria Interna e Qualidade Contínua.');
     } catch (err) {
       setError(err.message || 'Erro ao carregar configurações');
