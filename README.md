@@ -104,4 +104,4 @@ completo em [`DEPLOY.md`](./DEPLOY.md).
 - [ ] Decidir se o e-mail do auditor auxiliar (usado em `notificarDecisao`) deve vir do LDAP
       (`mail` attribute, já retornado pelo `ldap.js`) em vez do padrão fixo `username@argospatologia.com.br`
       que está hardcoded em `routes/auditorias.js` — ajuste rápido, só decidir a fonte
-- [ ] Gerar o certificado/DNS interno pra `auditoria.suporteargos.com.br`
+- [ ] Gerar o certificado/DNS interno pra `auditoria.xyz.com.br`
