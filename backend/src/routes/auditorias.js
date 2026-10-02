@@ -127,13 +127,13 @@ router.post('/', validateBody(criarAuditoriaSchema), async (req, res) => {
   res.status(201).json({ id: novaId });
 });
 
-// GET /api/auditorias/mine — minhas auditorias
+// GET /api/auditorias/mine — minhas auditorias + rascunhos em andamento da equipe
 router.get('/mine', async (req, res) => {
   await ensureColumns();
   const { rows } = await pool.query(
-    `SELECT a.id, a.setor_unidade, a.status, a.criado_em, a.auditor_auxiliar, a.auditor_observador, t.nome AS template_nome
+    `SELECT a.id, a.setor_unidade, a.status, a.criado_em, a.auditor_lider, a.auditor_auxiliar, a.auditor_observador, a.criado_por, t.nome AS template_nome
      FROM auditorias a JOIN templates t ON t.id = a.template_id
-     WHERE a.criado_por = $1
+     WHERE a.criado_por = $1 OR a.status = 'rascunho'
      ORDER BY a.atualizado_em DESC`,
     [req.user.username]
   );

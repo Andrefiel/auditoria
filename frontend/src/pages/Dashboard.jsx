@@ -73,9 +73,9 @@ export default function Dashboard() {
 
             {emAndamento.length > 0 && (
               <>
-                <div className="section-label">Em andamento</div>
+                <div className="section-label">Em andamento (Equipe)</div>
                 {emAndamento.map((a) => (
-                  <AuditRow key={a.id} a={a} onClick={() => navigate(`/auditorias/${a.id}/preencher`)} />
+                  <AuditRow key={a.id} a={a} currentUser={user} onClick={() => navigate(`/auditorias/${a.id}/preencher`)} />
                 ))}
               </>
             )}
@@ -84,7 +84,7 @@ export default function Dashboard() {
               <>
                 <div className="section-label">Aguardando aprovação</div>
                 {aguardando.map((a) => (
-                  <AuditRow key={a.id} a={a} onClick={() => navigate(`/auditorias/${a.id}/previo`)} />
+                  <AuditRow key={a.id} a={a} currentUser={user} onClick={() => navigate(`/auditorias/${a.id}/previo`)} />
                 ))}
               </>
             )}
@@ -93,7 +93,7 @@ export default function Dashboard() {
               <>
                 <div className="section-label">Concluídas</div>
                 {concluidas.map((a) => (
-                  <AuditRow key={a.id} a={a} onClick={() => navigate(`/auditorias/${a.id}/final`)} />
+                  <AuditRow key={a.id} a={a} currentUser={user} onClick={() => navigate(`/auditorias/${a.id}/final`)} />
                 ))}
               </>
             )}
@@ -154,12 +154,22 @@ export default function Dashboard() {
   );
 }
 
-function AuditRow({ a, onClick }) {
+function AuditRow({ a, currentUser, onClick }) {
+  const isMine = a.criado_por === currentUser?.username;
+  const autor = a.auditor_auxiliar || a.criado_por;
+
   return (
     <div className="audit-row" onClick={onClick}>
       <div className="audit-row-left">
         <div className="audit-row-title">{a.template_nome} — {a.setor_unidade}</div>
-        <div className="audit-row-sub">{new Date(a.criado_em).toLocaleDateString('pt-BR')}</div>
+        <div className="audit-row-sub">
+          {new Date(a.criado_em).toLocaleDateString('pt-BR')}
+          {a.status === 'rascunho' && (
+            <span style={{ marginLeft: 8, color: isMine ? 'var(--sky-deep)' : '#0284C7', fontWeight: 600 }}>
+              · {isMine ? 'Iniciado por você' : `Iniciado por ${autor}`}
+            </span>
+          )}
+        </div>
       </div>
       <span className={`status-pill ${a.status}`}>{STATUS_LABEL[a.status]}</span>
     </div>
