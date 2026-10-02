@@ -11,6 +11,7 @@ export default function Picker() {
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
+  const [sugestoes, setSugestoes] = useState([]);
 
   // Estado do modal de nova auditoria
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -21,6 +22,7 @@ export default function Picker() {
 
   useEffect(() => {
     api.templates().then(setTemplates).catch((e) => setError(e.message));
+    api.sugestoesAuxiliares().then(setSugestoes).catch(() => {});
   }, []);
 
   function handleOpenModal(t) {
@@ -29,7 +31,7 @@ export default function Picker() {
     // Se o usuário logado for um dos líderes, pré-seleciona ele, senão o primeiro da lista
     const liderMatch = AUDITORES_LIDERES.find((l) => l.toLowerCase() === user?.displayName?.toLowerCase());
     setAuditorLider(liderMatch || AUDITORES_LIDERES[0]);
-    setAuditorAuxiliar(user?.displayName || '');
+    setAuditorAuxiliar('');
     setAuditorObservador('');
     setError('');
   }
@@ -47,7 +49,7 @@ export default function Picker() {
         selectedTemplate.id,
         unidade.trim(),
         auditorLider,
-        auditorAuxiliar.trim() || user?.displayName,
+        auditorAuxiliar.trim() || null,
         auditorObservador.trim() || null
       );
       navigate(`/auditorias/${id}/preencher`);
@@ -124,6 +126,43 @@ export default function Picker() {
               </div>
 
               <div className="field">
+                <label>Auditor(a) Principal / Executor(a)</label>
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    background: '#F8FAFC',
+                    border: '1.5px solid var(--line)',
+                    borderRadius: 8,
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: 'var(--navy)',
+                  }}
+                >
+                  ✍️ {user?.displayName || user?.username} (Você)
+                </div>
+                <div className="field-hint">Responsável pela execução e preenchimento da auditoria.</div>
+              </div>
+
+              <div className="field">
+                <label>Auditor(a) Auxiliar (Opcional)</label>
+                <input
+                  type="text"
+                  value={auditorAuxiliar}
+                  onChange={(e) => setAuditorAuxiliar(e.target.value)}
+                  placeholder="Nome ou login do auditor auxiliar (ex: joao.silva)"
+                  list="sugestoes-auxiliares"
+                />
+                <datalist id="sugestoes-auxiliares">
+                  {sugestoes.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+                <div className="field-hint">
+                  Caso informado, a auditoria ficará em espera para este auditor validar e dar o De Acordo antes de ir ao Líder.
+                </div>
+              </div>
+
+              <div className="field">
                 <label>Auditor(a) Líder Responsável</label>
                 <select
                   value={auditorLider}
@@ -144,18 +183,7 @@ export default function Picker() {
                     </option>
                   ))}
                 </select>
-                <div className="field-hint">O auditor líder selecionado revisará e aprovará este relatório.</div>
-              </div>
-
-              <div className="field">
-                <label>Auditor Auxiliar</label>
-                <input
-                  type="text"
-                  value={auditorAuxiliar}
-                  onChange={(e) => setAuditorAuxiliar(e.target.value)}
-                  placeholder="Nome do auditor auxiliar"
-                />
-                <div className="field-hint">Pode ser preenchido ou alterado manualmente.</div>
+                <div className="field-hint">O auditor líder selecionado revisará e homologará o relatório final.</div>
               </div>
 
               <div className="field">

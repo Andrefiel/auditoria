@@ -236,17 +236,50 @@ function gerarRelatorioPDF(stream, auditoria, templateNome, itens, aprovado, dad
   y = doc.y + 30;
 
   if (aprovado) {
-    if (y > 670) { doc.addPage(); y = 50; }
+    if (y > 640) { doc.addPage(); y = 50; }
     doc.moveTo(50, y).lineTo(545, y).strokeColor(LINE).dash(2, { space: 2 }).stroke().undash();
-    y += 20;
-    doc.font('Helvetica').fontSize(9.5).fillColor(INK_SOFT)
-      .text('ASSINATURA DIGITAL / APROVAÇÃO DO RELATÓRIO', 50, y, { align: 'center', width: 495, characterSpacing: 1 });
-    y += 16;
-    doc.font('Helvetica-Bold').fontSize(13.5).fillColor(NAVY)
-      .text(`Aprovado digitalmente por: ${auditoria.aprovado_por || ''}`, 50, y, { align: 'center', width: 495 });
     y += 18;
-    doc.font('Helvetica').fontSize(10).fillColor(INK_SOFT)
-      .text(auditoria.aprovado_em ? `Data e hora da aprovação: ${new Date(auditoria.aprovado_em).toLocaleString('pt-BR')}` : '', 50, y, { align: 'center', width: 495 });
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(NAVY)
+      .text('ASSINATURAS DIGITAIS E HOMOLOGAÇÃO DO RELATÓRIO', 50, y, { align: 'center', width: 495, characterSpacing: 0.5 });
+    y += 18;
+
+    const temAuxiliar = Boolean(auditoria.assinado_por_auxiliar || auditoria.auditor_auxiliar);
+    const boxW = temAuxiliar ? 155 : 240;
+    const gap = temAuxiliar ? 15 : 15;
+    let currX = 50;
+
+    // Assinatura Executor
+    doc.roundedRect(currX, y, boxW, 58, 4).fillAndStroke('#F8FAFC', LINE);
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(SKY)
+      .text('AUDITOR(A) EXECUTOR(A)', currX + 8, y + 8, { width: boxW - 16 });
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
+      .text(auditoria.assinado_por_executor || auditoria.criado_por || 'Registrado', currX + 8, y + 22, { width: boxW - 16 });
+    doc.font('Helvetica').fontSize(7.5).fillColor(INK_SOFT)
+      .text(auditoria.assinado_em_executor ? `Assinado em ${new Date(auditoria.assinado_em_executor).toLocaleString('pt-BR')}` : '', currX + 8, y + 36, { width: boxW - 16 });
+    currX += boxW + gap;
+
+    // Assinatura Auxiliar (se existir)
+    if (temAuxiliar) {
+      doc.roundedRect(currX, y, boxW, 58, 4).fillAndStroke('#F8FAFC', LINE);
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#D97706')
+        .text('DE ACORDO (AUXILIAR)', currX + 8, y + 8, { width: boxW - 16 });
+      doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
+        .text(auditoria.assinado_por_auxiliar || auditoria.auditor_auxiliar, currX + 8, y + 22, { width: boxW - 16 });
+      doc.font('Helvetica').fontSize(7.5).fillColor(INK_SOFT)
+        .text(auditoria.assinado_em_auxiliar ? `Confirmado em ${new Date(auditoria.assinado_em_auxiliar).toLocaleString('pt-BR')}` : 'De acordo registrado', currX + 8, y + 36, { width: boxW - 16 });
+      currX += boxW + gap;
+    }
+
+    // Assinatura Líder
+    doc.roundedRect(currX, y, boxW, 58, 4).fillAndStroke('#F8FAFC', LINE);
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#16A34A')
+      .text('HOMOLOGAÇÃO (LÍDER)', currX + 8, y + 8, { width: boxW - 16 });
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
+      .text(auditoria.aprovado_por || auditoria.auditor_lider || 'Aprovado', currX + 8, y + 22, { width: boxW - 16 });
+    doc.font('Helvetica').fontSize(7.5).fillColor(INK_SOFT)
+      .text(auditoria.aprovado_em ? `Aprovado em ${new Date(auditoria.aprovado_em).toLocaleString('pt-BR')}` : '', currX + 8, y + 36, { width: boxW - 16 });
+
+    y += 70;
   }
 
   doc.end();

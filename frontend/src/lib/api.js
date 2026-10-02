@@ -76,6 +76,13 @@ export const api = {
   salvarRespostas: (id, respostas, conclusao, meta = {}) =>
     request(`/auditorias/${id}/respostas`, { method: 'PUT', body: { respostas, conclusao, ...meta } }),
   enviar: (id) => request(`/auditorias/${id}/enviar`, { method: 'POST' }),
+  revisarAuxiliar: (id, decisao, observacao) =>
+    request(`/auditorias/${id}/revisar-auxiliar`, { method: 'POST', body: { decisao, observacao } }),
+  alterarAuxiliar: (id, auditor_auxiliar) =>
+    request(`/auditorias/${id}/auxiliar`, { method: 'PATCH', body: { auditor_auxiliar } }),
+  reabrirRascunho: (id) =>
+    request(`/auditorias/${id}/reabrir-rascunho`, { method: 'POST' }),
+  sugestoesAuxiliares: () => request('/auditorias/sugestoes-auxiliares'),
   decidir: (id, decisao, observacao) =>
     request(`/auditorias/${id}/decidir`, { method: 'POST', body: { decisao, observacao } }),
   criterios5S: () => request('/auditorias/5s/criterios'),

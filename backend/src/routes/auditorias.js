@@ -46,13 +46,40 @@ const decidirSchema = z.object({
   observacao: z.string().max(2000, 'Observação muito longa').nullable().optional(),
 });
 
-// Garante que as colunas e tabelas do 5S existam no PostgreSQL
+const revisarAuxiliarSchema = z.object({
+  decisao: z.enum(['concordo', 'devolver'], { required_error: "decisao deve ser 'concordo' ou 'devolver'" }),
+  observacao: z.string().max(2000, 'Observação muito longa').nullable().optional(),
+});
+
+const alterarAuxiliarSchema = z.object({
+  auditor_auxiliar: z.string().trim().max(120).nullable().optional(),
+});
+
+// Garante que as colunas e tabelas do 5S e assinaturas existam no PostgreSQL
 let columnMigrated = false;
 async function ensureColumns() {
   if (columnMigrated) return;
   try {
     await pool.query(`
       ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS auditor_observador VARCHAR(120);
+      ALTER TABLE auditorias ALTER COLUMN auditor_auxiliar DROP NOT NULL;
+      ALTER TABLE auditorias ALTER COLUMN status TYPE VARCHAR(32);
+      ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS assinado_por_executor VARCHAR(120);
+      ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS assinado_em_executor TIMESTAMPTZ;
+      ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS assinado_por_auxiliar VARCHAR(120);
+      ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS assinado_em_auxiliar TIMESTAMPTZ;
+      ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS observacao_auxiliar TEXT;
+      ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS observacao_aprovacao TEXT;
+      ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS observacao_reprovacao TEXT;
+
+      DO $$ BEGIN
+        ALTER TABLE auditorias DROP CONSTRAINT IF EXISTS auditorias_status_check;
+        ALTER TABLE auditorias ADD CONSTRAINT auditorias_status_check
+          CHECK (status IN ('rascunho','aguardando_revisao_auxiliar','aguardando_aprovacao','aprovado','reprovado'));
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END $$;
+
       CREATE TABLE IF NOT EXISTS auditorias_5s (
         auditoria_id      UUID PRIMARY KEY REFERENCES auditorias(id) ON DELETE CASCADE,
         respostas         JSONB NOT NULL DEFAULT '[]',
@@ -68,7 +95,7 @@ async function ensureColumns() {
     `);
     columnMigrated = true;
   } catch (err) {
-    console.error('[MIGRATION] Erro ao verificar tabelas 5S/observador:', err.message);
+    console.error('[MIGRATION] Erro ao verificar tabelas/colunas de assinatura:', err.message);
   }
 }
 
@@ -92,12 +119,34 @@ async function carregarItensComRespostas(auditoriaId, templateId) {
   return rows;
 }
 
+// GET /api/auditorias/sugestoes-auxiliares — lista nomes sugeridos para autocompletar
+router.get('/sugestoes-auxiliares', async (req, res) => {
+  try {
+    await ensureColumns();
+    const { rows } = await pool.query(`
+      SELECT DISTINCT TRIM(nome) AS nome FROM (
+        SELECT auditor_auxiliar AS nome FROM auditorias WHERE auditor_auxiliar IS NOT NULL AND TRIM(auditor_auxiliar) != ''
+        UNION
+        SELECT auditor_lider AS nome FROM auditorias WHERE auditor_lider IS NOT NULL AND TRIM(auditor_lider) != ''
+        UNION
+        SELECT assinado_por_executor AS nome FROM auditorias WHERE assinado_por_executor IS NOT NULL AND TRIM(assinado_por_executor) != ''
+        UNION
+        SELECT criado_por AS nome FROM auditorias WHERE criado_por IS NOT NULL AND TRIM(criado_por) != ''
+      ) s WHERE nome IS NOT NULL AND LENGTH(TRIM(nome)) > 1
+      ORDER BY nome ASC LIMIT 50
+    `);
+    res.json(rows.map((r) => r.nome));
+  } catch (err) {
+    res.json([]);
+  }
+});
+
 // POST /api/auditorias — cria um rascunho novo
 router.post('/', validateBody(criarAuditoriaSchema), async (req, res) => {
   await ensureColumns();
   const { template_id, setor_unidade, auditor_lider, auditor_auxiliar, auditor_observador } = req.body;
   const liderEscolhido = auditor_lider || (req.user.isLider ? req.user.displayName : null);
-  const auxiliarEscolhido = auditor_auxiliar?.trim() || req.user.displayName;
+  const auxiliarEscolhido = auditor_auxiliar?.trim() || null;
   const observadorEscolhido = auditor_observador?.trim() || null;
 
   const { rows } = await pool.query(
@@ -127,15 +176,28 @@ router.post('/', validateBody(criarAuditoriaSchema), async (req, res) => {
   res.status(201).json({ id: novaId });
 });
 
-// GET /api/auditorias/mine — minhas auditorias + rascunhos em andamento da equipe
+// GET /api/auditorias/mine — minhas auditorias + rascunhos em andamento da equipe + pendentes de revisão do auxiliar
 router.get('/mine', async (req, res) => {
   await ensureColumns();
+  const username = req.user.username;
+  const displayName = req.user.displayName || username;
+
   const { rows } = await pool.query(
-    `SELECT a.id, a.setor_unidade, a.status, a.criado_em, a.auditor_lider, a.auditor_auxiliar, a.auditor_observador, a.criado_por, t.nome AS template_nome
+    `SELECT a.id, a.setor_unidade, a.status, a.criado_em, a.auditor_lider, a.auditor_auxiliar, a.auditor_observador, a.criado_por,
+            a.assinado_por_executor, a.assinado_em_executor, a.assinado_por_auxiliar, a.assinado_em_auxiliar, a.observacao_auxiliar,
+            t.nome AS template_nome
      FROM auditorias a JOIN templates t ON t.id = a.template_id
-     WHERE a.criado_por = $1 OR a.status = 'rascunho'
+     WHERE a.criado_por = $1
+        OR a.status = 'rascunho'
+        OR (
+             a.status = 'aguardando_revisao_auxiliar' AND (
+               a.auditor_auxiliar ILIKE '%' || $1 || '%' OR
+               a.auditor_auxiliar ILIKE '%' || $2 || '%' OR
+               $2 ILIKE '%' || a.auditor_auxiliar || '%'
+             )
+           )
      ORDER BY a.atualizado_em DESC`,
-    [req.user.username]
+    [username, displayName]
   );
   res.json(rows);
 });
@@ -144,7 +206,8 @@ router.get('/mine', async (req, res) => {
 router.get('/pendentes', requireLider, async (req, res) => {
   await ensureColumns();
   const { rows } = await pool.query(
-    `SELECT a.id, a.setor_unidade, a.criado_em, a.auditor_auxiliar, a.auditor_observador, t.nome AS template_nome,
+    `SELECT a.id, a.setor_unidade, a.criado_em, a.auditor_auxiliar, a.auditor_observador,
+            a.assinado_por_executor, a.assinado_por_auxiliar, t.nome AS template_nome,
             (SELECT COUNT(*) FROM auditoria_respostas ar
               WHERE ar.auditoria_id = a.id AND ar.resultado IN ('NC','PA'))::int AS alertas
      FROM auditorias a JOIN templates t ON t.id = a.template_id
@@ -156,7 +219,10 @@ router.get('/pendentes', requireLider, async (req, res) => {
 
 const AUDITORIA_SELECT_FIELDS = `
   a.id, a.template_id, a.setor_unidade, a.auditor_lider, a.auditor_auxiliar, a.auditor_observador,
-  a.conclusao, a.status, a.criado_por, a.aprovado_por, a.aprovado_em,
+  a.conclusao, a.status, a.criado_por,
+  a.assinado_por_executor, a.assinado_em_executor,
+  a.assinado_por_auxiliar, a.assinado_em_auxiliar, a.observacao_auxiliar,
+  a.aprovado_por, a.aprovado_em, a.observacao_aprovacao, a.observacao_reprovacao,
   a.criado_em, a.atualizado_em, t.nome AS template_nome
 `;
 
@@ -271,7 +337,68 @@ router.put('/:id/respostas', validateBody(salvarRespostasSchema), async (req, re
   }
 });
 
-// POST /api/auditorias/:id/enviar — gera o relatório prévio e manda pra aprovação
+// PATCH /api/auditorias/:id/auxiliar — corrige ou altera o auditor auxiliar
+router.patch('/:id/auxiliar', validateBody(alterarAuxiliarSchema), async (req, res) => {
+  await ensureColumns();
+  const { auditor_auxiliar } = req.body;
+  const novoAuxiliar = auditor_auxiliar && auditor_auxiliar.trim() ? auditor_auxiliar.trim() : null;
+
+  const { rows } = await pool.query(
+    `SELECT id, criado_por, status, auditor_auxiliar FROM auditorias WHERE id = $1`,
+    [req.params.id]
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'Auditoria não encontrada' });
+  const auditoria = rows[0];
+
+  const podeAlterar = req.user.isLider || auditoria.criado_por === req.user.username;
+  if (!podeAlterar) {
+    return res.status(403).json({ error: 'Sem permissão para alterar o auditor auxiliar desta auditoria' });
+  }
+
+  await pool.query(
+    `UPDATE auditorias SET auditor_auxiliar = $1, atualizado_em = now() WHERE id = $2`,
+    [novoAuxiliar, req.params.id]
+  );
+
+  await pool.query(
+    `INSERT INTO auditoria_historico (auditoria_id, usuario, de_status, para_status, observacao)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [req.params.id, req.user.username, auditoria.status, auditoria.status, `Auditor auxiliar atualizado para: ${novoAuxiliar || 'Nenhum'}`]
+  );
+
+  res.json({ ok: true, auditor_auxiliar: novoAuxiliar });
+});
+
+// POST /api/auditorias/:id/reabrir-rascunho — devolve para rascunho pelo criador ou líder para correções
+router.post('/:id/reabrir-rascunho', async (req, res) => {
+  await ensureColumns();
+  const { rows } = await pool.query(
+    `SELECT id, criado_por, status FROM auditorias WHERE id = $1`,
+    [req.params.id]
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'Auditoria não encontrada' });
+  const auditoria = rows[0];
+
+  const podeReabrir = req.user.isLider || auditoria.criado_por === req.user.username;
+  if (!podeReabrir) {
+    return res.status(403).json({ error: 'Sem permissão para reabrir esta auditoria' });
+  }
+
+  await pool.query(
+    `UPDATE auditorias SET status = 'rascunho', atualizado_em = now() WHERE id = $1`,
+    [req.params.id]
+  );
+
+  await pool.query(
+    `INSERT INTO auditoria_historico (auditoria_id, usuario, de_status, para_status, observacao)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [req.params.id, req.user.username, auditoria.status, 'rascunho', 'Retornado para rascunho para correções']
+  );
+
+  res.json({ ok: true, status: 'rascunho' });
+});
+
+// POST /api/auditorias/:id/enviar — finaliza preenchimento, assina pelo executor e manda para auxiliar ou líder
 router.post('/:id/enviar', async (req, res) => {
   await ensureColumns();
   const { rows } = await pool.query(
@@ -303,14 +430,40 @@ router.post('/:id/enviar', async (req, res) => {
     return res.status(422).json({ error: 'A conclusão é obrigatória antes de enviar' });
   }
 
-  await pool.query(`UPDATE auditorias SET status = 'aguardando_aprovacao' WHERE id = $1`, [req.params.id]);
+  // Se houver auditor auxiliar informado e diferente do usuário executor logado
+  const auxClean = (auditoria.auditor_auxiliar || '').trim().toLowerCase();
+  const userDisplay = (req.user.displayName || '').trim().toLowerCase();
+  const userName = (req.user.username || '').trim().toLowerCase();
+  const temAuxiliar = Boolean(
+    auxClean &&
+    auxClean !== userDisplay &&
+    auxClean !== userName
+  );
+
+  const novoStatus = temAuxiliar ? 'aguardando_revisao_auxiliar' : 'aguardando_aprovacao';
+
+  await pool.query(
+    `UPDATE auditorias
+     SET status = $1, assinado_por_executor = $2, assinado_em_executor = now()
+     WHERE id = $3`,
+    [novoStatus, req.user.displayName, req.params.id]
+  );
+
   await pool.query(
     `INSERT INTO auditoria_historico (auditoria_id, usuario, de_status, para_status, observacao)
      VALUES ($1,$2,$3,$4,$5)`,
-    [req.params.id, req.user.username, auditoria.status, 'aguardando_aprovacao', null]
+    [
+      req.params.id,
+      req.user.username,
+      auditoria.status,
+      novoStatus,
+      temAuxiliar
+        ? 'Assinado pelo executor e encaminhado para revisão e De Acordo do auxiliar'
+        : 'Assinado pelo executor e encaminhado para aprovação do líder',
+    ]
   );
 
-  if (LIDERES_EMAIL) {
+  if (novoStatus === 'aguardando_aprovacao' && LIDERES_EMAIL) {
     notificarEnvioParaAprovacao({
       to: LIDERES_EMAIL,
       setorNome: auditoria.template_nome,
@@ -322,14 +475,99 @@ router.post('/:id/enviar', async (req, res) => {
 
   registrarLog({
     usuario: req.user.username,
-    acao: 'ENVIAR_APROVACAO',
+    acao: novoStatus === 'aguardando_revisao_auxiliar' ? 'ENVIAR_REVISAO_AUXILIAR' : 'ENVIAR_APROVACAO',
     recurso: 'auditoria',
     recurso_id: req.params.id,
     req,
-    detalhes: { setor: auditoria.template_nome, unidade: auditoria.setor_unidade },
+    detalhes: { setor: auditoria.template_nome, unidade: auditoria.setor_unidade, novoStatus },
   });
 
-  res.json({ ok: true, status: 'aguardando_aprovacao' });
+  res.json({ ok: true, status: novoStatus });
+});
+
+// POST /api/auditorias/:id/revisar-auxiliar — Auditor auxiliar confere e dá o De Acordo ou Devolve
+router.post('/:id/revisar-auxiliar', validateBody(revisarAuxiliarSchema), async (req, res) => {
+  const { decisao, observacao } = req.body;
+  if (decisao === 'devolver' && !observacao) {
+    return res.status(422).json({ error: 'Observação é obrigatória ao devolver para ajustes' });
+  }
+
+  const { rows } = await pool.query(
+    `SELECT ${AUDITORIA_SELECT_FIELDS} FROM auditorias a
+     JOIN templates t ON t.id = a.template_id WHERE a.id = $1`,
+    [req.params.id]
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'Auditoria não encontrada' });
+  const auditoria = rows[0];
+
+  if (auditoria.status !== 'aguardando_revisao_auxiliar') {
+    return res.status(409).json({ error: 'Esta auditoria não está aguardando revisão do auditor auxiliar' });
+  }
+
+  if (decisao === 'concordo') {
+    await pool.query(
+      `UPDATE auditorias
+       SET status = 'aguardando_aprovacao',
+           assinado_por_auxiliar = $1,
+           assinado_em_auxiliar = now(),
+           observacao_auxiliar = $2
+       WHERE id = $3`,
+      [req.user.displayName, observacao || null, req.params.id]
+    );
+
+    await pool.query(
+      `INSERT INTO auditoria_historico (auditoria_id, usuario, de_status, para_status, observacao)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [req.params.id, req.user.username, 'aguardando_revisao_auxiliar', 'aguardando_aprovacao', observacao || 'De acordo pelo auditor auxiliar']
+    );
+
+    if (LIDERES_EMAIL) {
+      notificarEnvioParaAprovacao({
+        to: LIDERES_EMAIL,
+        setorNome: auditoria.template_nome,
+        unidade: auditoria.setor_unidade,
+        auditor: `${auditoria.assinado_por_executor || auditoria.criado_por} e ${req.user.displayName} (Auxiliar)`,
+        link: `${APP_URL}/auditorias/${auditoria.id}`,
+      });
+    }
+
+    registrarLog({
+      usuario: req.user.username,
+      acao: 'DE_ACORDO_AUXILIAR',
+      recurso: 'auditoria',
+      recurso_id: req.params.id,
+      req,
+      detalhes: { observacao },
+    });
+
+    res.json({ ok: true, status: 'aguardando_aprovacao' });
+  } else {
+    // Devolve para rascunho
+    await pool.query(
+      `UPDATE auditorias
+       SET status = 'rascunho',
+           observacao_auxiliar = $1
+       WHERE id = $2`,
+      [observacao, req.params.id]
+    );
+
+    await pool.query(
+      `INSERT INTO auditoria_historico (auditoria_id, usuario, de_status, para_status, observacao)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [req.params.id, req.user.username, 'aguardando_revisao_auxiliar', 'rascunho', observacao]
+    );
+
+    registrarLog({
+      usuario: req.user.username,
+      acao: 'DEVOLVER_REVISAO_AUXILIAR',
+      recurso: 'auditoria',
+      recurso_id: req.params.id,
+      req,
+      detalhes: { observacao },
+    });
+
+    res.json({ ok: true, status: 'rascunho' });
+  }
 });
 
 // POST /api/auditorias/:id/decidir — aprovar ou reprovar (só auditores_lideres)

@@ -32,6 +32,11 @@ export default function Preenchimento() {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [sugestoes, setSugestoes] = useState([]);
+
+  useEffect(() => {
+    api.sugestoesAuxiliares().then(setSugestoes).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     const [data, crit5s] = await Promise.all([
@@ -195,6 +200,7 @@ export default function Preenchimento() {
   const totalItens5s = 25;
   const done5s = respostas5s.filter((r) => r.nota).length;
   const ready = itens.length > 0 && done === itens.length && conclusao.trim().length > 0 && semJustificativaObrigatoria.length === 0;
+  const temAuxiliar = Boolean(auditorAuxiliar && auditorAuxiliar.trim());
 
   if (!auditoria) {
     return (
@@ -219,7 +225,28 @@ export default function Preenchimento() {
 
         {error && <div className="error-banner">{error}</div>}
 
-        <div className="meta-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+        <div className="meta-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          <div className="meta-pill">
+            <label>Auditor(a) Executor(a)</label>
+            <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--navy)', marginTop: 4 }}>
+              ✍️ {auditoria.assinado_por_executor || auditoria.criado_por}
+            </div>
+          </div>
+          <div className="meta-pill">
+            <label>Auditor(a) Auxiliar (Opcional)</label>
+            <input
+              value={auditorAuxiliar}
+              onChange={(e) => setAuditorAuxiliar(e.target.value)}
+              onBlur={() => persist()}
+              placeholder="Nome ou login do auxiliar"
+              list="sugestoes-auxiliares-preencher"
+            />
+            <datalist id="sugestoes-auxiliares-preencher">
+              {sugestoes.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </div>
           <div className="meta-pill">
             <label>Auditor(a) Líder</label>
             <select
@@ -238,21 +265,12 @@ export default function Preenchimento() {
             </select>
           </div>
           <div className="meta-pill">
-            <label>Auditor Auxiliar</label>
-            <input
-              value={auditorAuxiliar}
-              onChange={(e) => setAuditorAuxiliar(e.target.value)}
-              onBlur={() => persist()}
-              placeholder="Nome do auditor auxiliar"
-            />
-          </div>
-          <div className="meta-pill">
             <label>Auditor Observador (Opcional)</label>
             <input
               value={auditorObservador}
               onChange={(e) => setAuditorObservador(e.target.value)}
               onBlur={() => persist()}
-              placeholder="Nome do auditor observador"
+              placeholder="Nome do observador"
             />
           </div>
           <div className="meta-pill">
@@ -547,9 +565,19 @@ export default function Preenchimento() {
             className="btn btn-primary"
             disabled={!ready || sending}
             onClick={handleEnviar}
-            title={!ready ? 'Responda todos os itens do roteiro setorial, justifique NC/PA/NA e preencha a conclusão.' : ''}
+            title={
+              !ready
+                ? 'Responda todos os itens do roteiro setorial, justifique NC/PA/NA e preencha a conclusão.'
+                : temAuxiliar
+                  ? 'Assina digitalmente como Executor e encaminha para conferência e De Acordo do Auditor Auxiliar.'
+                  : 'Assina digitalmente como Executor e encaminha diretamente para homologação do Líder.'
+            }
           >
-            {sending ? 'Enviando…' : 'Gerar relatório prévio →'}
+            {sending
+              ? 'Assinando e Enviando…'
+              : temAuxiliar
+                ? 'Assinar e Enviar para De Acordo do Auxiliar →'
+                : 'Assinar e Enviar para o Líder →'}
           </button>
         </div>
       </div>

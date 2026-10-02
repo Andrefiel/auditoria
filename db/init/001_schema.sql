@@ -42,12 +42,19 @@ CREATE TABLE auditorias (
   template_id      INT NOT NULL REFERENCES templates(id),
   setor_unidade    VARCHAR(150) NOT NULL,          -- ex: 'Recepção — Unidade Aldeota'
   auditor_lider     VARCHAR(120),                   -- Auditor líder responsável
-  auditor_auxiliar  VARCHAR(120) NOT NULL,           -- Auditor auxiliar (editável/manual)
+  auditor_auxiliar  VARCHAR(120),                   -- Auditor auxiliar (opcional/manual)
   auditor_observador VARCHAR(120),                  -- Auditor observador (opcional/manual)
   conclusao        TEXT,
-  status           VARCHAR(24) NOT NULL DEFAULT 'rascunho'
-                     CHECK (status IN ('rascunho','aguardando_aprovacao','aprovado','reprovado')),
+  status           VARCHAR(32) NOT NULL DEFAULT 'rascunho'
+                     CHECK (status IN ('rascunho','aguardando_revisao_auxiliar','aguardando_aprovacao','aprovado','reprovado')),
   criado_por       VARCHAR(60) NOT NULL,             -- username AD de quem criou
+  assinado_por_executor VARCHAR(120),
+  assinado_em_executor  TIMESTAMPTZ,
+  assinado_por_auxiliar VARCHAR(120),
+  assinado_em_auxiliar  TIMESTAMPTZ,
+  observacao_auxiliar   TEXT,
+  observacao_aprovacao  TEXT,
+  observacao_reprovacao TEXT,
   aprovado_por     VARCHAR(60),
   aprovado_em      TIMESTAMPTZ,
   criado_em        TIMESTAMPTZ NOT NULL DEFAULT now(),

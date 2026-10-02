@@ -127,19 +127,73 @@ export default function RelatorioFinal() {
           <div className="card-title">Conclusão Geral</div>
           <div className="conclusao-box">{auditoria.conclusao || 'Nenhuma conclusão registrada.'}</div>
 
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px dashed var(--line)', textAlign: 'center' }}>
-            <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 600 }}>
-              Assinatura Digital / Aprovação do Relatorio
+          <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px dashed var(--line)' }}>
+            <div style={{ fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--ink-soft)', fontWeight: 700, marginBottom: 16, textAlign: 'center' }}>
+              Validação e Assinaturas Digitais do Relatório
             </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--navy)', marginTop: 6 }}>
-              Aprovado digitalmente por: {auditoria.aprovado_por}
+
+            <div style={{ display: 'grid', gridTemplateColumns: auditoria.assinado_por_auxiliar || auditoria.auditor_auxiliar ? 'repeat(auto-fit, minmax(240px, 1fr))' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              {/* Executor */}
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 14 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', fontWeight: 700, color: 'var(--sky)' }}>
+                  ✍️ Auditor(a) Executor(a)
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)', marginTop: 4 }}>
+                  {auditoria.assinado_por_executor || auditoria.criado_por || 'Registrado'}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
+                  {auditoria.assinado_em_executor
+                    ? `Assinado em ${new Date(auditoria.assinado_em_executor).toLocaleString('pt-BR')}`
+                    : auditoria.criado_em ? `Enviado em ${new Date(auditoria.criado_em).toLocaleString('pt-BR')}` : ''}
+                </div>
+              </div>
+
+              {/* Auxiliar (se existir) */}
+              {(auditoria.assinado_por_auxiliar || auditoria.auditor_auxiliar) && (
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 14 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', fontWeight: 700, color: '#D97706' }}>
+                    🤝 De Acordo (Auditor Auxiliar)
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)', marginTop: 4 }}>
+                    {auditoria.assinado_por_auxiliar || auditoria.auditor_auxiliar}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
+                    {auditoria.assinado_em_auxiliar
+                      ? `Confirmado em ${new Date(auditoria.assinado_em_auxiliar).toLocaleString('pt-BR')}`
+                      : 'Pendente de assinatura'}
+                  </div>
+                  {auditoria.observacao_auxiliar && (
+                    <div style={{ marginTop: 6, fontSize: 11.5, color: '#475569', fontStyle: 'italic', borderTop: '1px dashed #CBD5E1', paddingTop: 4 }}>
+                      "{auditoria.observacao_auxiliar}"
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Líder */}
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 14 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', fontWeight: 700, color: '#16A34A' }}>
+                  🛡️ Homologação (Auditor Líder)
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)', marginTop: 4 }}>
+                  {auditoria.aprovado_por || auditoria.auditor_lider}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>
+                  {auditoria.aprovado_em
+                    ? `Aprovado em ${new Date(auditoria.aprovado_em).toLocaleString('pt-BR')}`
+                    : 'Aprovado digitalmente'}
+                </div>
+                {auditoria.observacao_aprovacao && (
+                  <div style={{ marginTop: 6, fontSize: 11.5, color: '#475569', fontStyle: 'italic', borderTop: '1px dashed #CBD5E1', paddingTop: 4 }}>
+                    "{auditoria.observacao_aprovacao}"
+                  </div>
+                )}
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>
-              {auditoria.aprovado_em ? `Data e hora da aprovação: ${new Date(auditoria.aprovado_em).toLocaleString('pt-BR')}` : ''}
-            </div>
-            <div style={{ marginTop: 16 }}>
+
+            <div style={{ marginTop: 24, textAlign: 'center' }}>
               <a href={api.pdfUrl(id)} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ display: 'inline-block', padding: '10px 24px', textDecoration: 'none' }}>
-                📄 Baixar PDF do Relatorio Final
+                📄 Baixar PDF do Relatório Final
               </a>
             </div>
           </div>
