@@ -189,6 +189,16 @@ export default function Preenchimento() {
       await api.enviar(id);
       navigate(`/auditorias/${id}/previo`);
     } catch (e) {
+      // Caso ocorra timeout de rede ou proxy temporário (ex: 502), verificar se a auditoria já avançou de status no banco
+      try {
+        const auditAtualizada = await api.getAuditoria(id);
+        if (auditAtualizada && ['aguardando_revisao_auxiliar', 'aguardando_aprovacao', 'aprovado'].includes(auditAtualizada.status)) {
+          navigate(`/auditorias/${id}/previo`);
+          return;
+        }
+      } catch (_) {
+        // ignora falha da checagem secundária
+      }
       setError(e.message);
     } finally {
       setSending(false);
