@@ -42,6 +42,7 @@ export default function RelatorioFinal() {
         </div>
         <div className="report-body">
           <div className="report-grid">
+            <div className="report-field"><label>Auditor(a) Executor(a)</label><div className="v">{auditoria.assinado_por_executor || auditoria.criado_por}</div></div>
             <div className="report-field"><label>Auditor(a) Líder</label><div className="v">{auditoria.auditor_lider || '—'}</div></div>
             <div className="report-field"><label>Auditor auxiliar</label><div className="v">{auditoria.auditor_auxiliar || '—'}</div></div>
             <div className="report-field"><label>Auditor observador</label><div className="v">{auditoria.auditor_observador || '—'}</div></div>
@@ -152,7 +153,7 @@ export default function RelatorioFinal() {
               {(auditoria.assinado_por_auxiliar || auditoria.auditor_auxiliar) && (
                 <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 14 }}>
                   <div style={{ fontSize: 11, textTransform: 'uppercase', fontWeight: 700, color: '#D97706' }}>
-                    🤝 De Acordo (Auditor Auxiliar)
+                    🤝 Auditor Auxiliar
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)', marginTop: 4 }}>
                     {auditoria.assinado_por_auxiliar || auditoria.auditor_auxiliar}
@@ -173,7 +174,7 @@ export default function RelatorioFinal() {
               {/* Líder */}
               <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 14 }}>
                 <div style={{ fontSize: 11, textTransform: 'uppercase', fontWeight: 700, color: '#16A34A' }}>
-                  🛡️ Homologação (Auditor Líder)
+                  🛡️ Auditor Líder
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)', marginTop: 4 }}>
                   {auditoria.aprovado_por || auditoria.auditor_lider}

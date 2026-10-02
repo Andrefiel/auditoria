@@ -109,24 +109,29 @@ function gerarRelatorioPDF(stream, auditoria, templateNome, itens, aprovado, dad
 
   // Metadados
   const metaY = 110;
-  doc.fontSize(9).fillColor(INK_SOFT).font('Helvetica-Bold');
-  doc.text('AUDITOR(A) LÍDER', 50, metaY);
+  doc.fontSize(8.5).fillColor(INK_SOFT).font('Helvetica-Bold');
+  doc.text('AUDITOR(A) EXECUTOR(A)', 50, metaY);
   doc.text('AUDITOR AUXILIAR', 300, metaY);
-  doc.fillColor('#000').font('Helvetica').fontSize(11);
-  doc.text(auditoria.auditor_lider || '— (pendente)', 50, metaY + 13);
-  doc.text(auditoria.auditor_auxiliar || '-', 300, metaY + 13);
+  doc.fillColor('#000').font('Helvetica').fontSize(10.5);
+  doc.text(auditoria.assinado_por_executor || auditoria.criado_por || '—', 50, metaY + 13);
+  doc.text(auditoria.auditor_auxiliar || '—', 300, metaY + 13);
 
-  doc.fontSize(9).fillColor(INK_SOFT).font('Helvetica-Bold');
-  doc.text('AUDITOR OBSERVADOR', 50, metaY + 35);
-  doc.text('DATA DA AUDITORIA', 300, metaY + 35);
-  doc.fillColor('#000').font('Helvetica').fontSize(11);
-  doc.text(auditoria.auditor_observador || '—', 50, metaY + 48);
-  doc.text(new Date(auditoria.criado_em).toLocaleString('pt-BR'), 300, metaY + 48);
+  doc.fontSize(8.5).fillColor(INK_SOFT).font('Helvetica-Bold');
+  doc.text('AUDITOR(A) LÍDER', 50, metaY + 34);
+  doc.text('AUDITOR OBSERVADOR', 300, metaY + 34);
+  doc.fillColor('#000').font('Helvetica').fontSize(10.5);
+  doc.text(auditoria.auditor_lider || '— (pendente)', 50, metaY + 47);
+  doc.text(auditoria.auditor_observador || '—', 300, metaY + 47);
 
-  doc.moveTo(50, metaY + 75).lineTo(545, metaY + 75).strokeColor(LINE).stroke();
+  doc.fontSize(8.5).fillColor(INK_SOFT).font('Helvetica-Bold');
+  doc.text('DATA DA AUDITORIA', 50, metaY + 68);
+  doc.fillColor('#000').font('Helvetica').fontSize(10.5);
+  doc.text(new Date(auditoria.criado_em).toLocaleString('pt-BR'), 50, metaY + 81);
+
+  doc.moveTo(50, metaY + 104).lineTo(545, metaY + 104).strokeColor(LINE).stroke();
 
   // Itens
-  let y = metaY + 95;
+  let y = metaY + 120;
   doc.font('Helvetica-Bold').fontSize(12).fillColor(NAVY).text('1. Requisitos avaliados', 50, y);
   y += 22;
 
@@ -262,7 +267,7 @@ function gerarRelatorioPDF(stream, auditoria, templateNome, itens, aprovado, dad
     if (temAuxiliar) {
       doc.roundedRect(currX, y, boxW, 58, 4).fillAndStroke('#F8FAFC', LINE);
       doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#D97706')
-        .text('DE ACORDO (AUXILIAR)', currX + 8, y + 8, { width: boxW - 16 });
+        .text('AUDITOR AUXILIAR', currX + 8, y + 8, { width: boxW - 16 });
       doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
         .text(auditoria.assinado_por_auxiliar || auditoria.auditor_auxiliar, currX + 8, y + 22, { width: boxW - 16 });
       doc.font('Helvetica').fontSize(7.5).fillColor(INK_SOFT)
@@ -273,7 +278,7 @@ function gerarRelatorioPDF(stream, auditoria, templateNome, itens, aprovado, dad
     // Assinatura Líder
     doc.roundedRect(currX, y, boxW, 58, 4).fillAndStroke('#F8FAFC', LINE);
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#16A34A')
-      .text('HOMOLOGAÇÃO (LÍDER)', currX + 8, y + 8, { width: boxW - 16 });
+      .text('AUDITOR LÍDER', currX + 8, y + 8, { width: boxW - 16 });
     doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
       .text(auditoria.aprovado_por || auditoria.auditor_lider || 'Aprovado', currX + 8, y + 22, { width: boxW - 16 });
     doc.font('Helvetica').fontSize(7.5).fillColor(INK_SOFT)

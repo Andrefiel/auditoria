@@ -78,9 +78,9 @@ CREATE TABLE auditoria_respostas (
 CREATE TABLE auditoria_historico (
   id           SERIAL PRIMARY KEY,
   auditoria_id UUID NOT NULL REFERENCES auditorias(id) ON DELETE CASCADE,
-  usuario      VARCHAR(60) NOT NULL,
-  de_status    VARCHAR(24),
-  para_status  VARCHAR(24) NOT NULL,
+  usuario      VARCHAR(120) NOT NULL,
+  de_status    VARCHAR(64),
+  para_status  VARCHAR(64) NOT NULL,
   observacao   TEXT,
   criado_em    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

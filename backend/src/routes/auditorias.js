@@ -73,6 +73,10 @@ function ensureColumns() {
           ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS observacao_aprovacao TEXT;
           ALTER TABLE auditorias ADD COLUMN IF NOT EXISTS observacao_reprovacao TEXT;
 
+          ALTER TABLE auditoria_historico ALTER COLUMN de_status TYPE VARCHAR(64);
+          ALTER TABLE auditoria_historico ALTER COLUMN para_status TYPE VARCHAR(64);
+          ALTER TABLE auditoria_historico ALTER COLUMN usuario TYPE VARCHAR(120);
+
           DO $$ BEGIN
             ALTER TABLE auditorias DROP CONSTRAINT IF EXISTS auditorias_status_check;
             ALTER TABLE auditorias ADD CONSTRAINT auditorias_status_check
