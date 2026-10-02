@@ -49,7 +49,7 @@ export default function RelatorioPrevio() {
   const isAuxiliar = Boolean(
     auxClean && (auxClean.includes(userName) || auxClean.includes(userDisplay) || userDisplay.includes(auxClean))
   );
-  const podeRevisarAuxiliar = auditoria.status === 'aguardando_revisao_auxiliar' && (isAuxiliar || user?.isLider);
+  const podeRevisarAuxiliar = auditoria.status === 'aguardando_revisao_auxiliar' && isAuxiliar;
   const podeGerenciarAuditoria = (auditoria.criado_por === user?.username) || user?.isLider;
 
   async function decidir(decisao) {

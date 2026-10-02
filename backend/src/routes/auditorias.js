@@ -530,6 +530,19 @@ router.post('/:id/revisar-auxiliar', validateBody(revisarAuxiliarSchema), async 
       return res.status(409).json({ error: 'Esta auditoria não está aguardando revisão do auditor auxiliar' });
     }
 
+    const auxClean = (auditoria.auditor_auxiliar || '').toLowerCase().trim();
+    const userDisplay = (req.user.displayName || '').toLowerCase().trim();
+    const userName = (req.user.username || '').toLowerCase().trim();
+    const isAuxiliar = Boolean(
+      auxClean && (auxClean === userName || auxClean === userDisplay || auxClean.includes(userName) || userDisplay.includes(auxClean))
+    );
+
+    if (!isAuxiliar) {
+      return res.status(403).json({
+        error: `Apenas o auditor auxiliar designado (${auditoria.auditor_auxiliar}) pode registrar o De Acordo ou devolver para ajustes.`,
+      });
+    }
+
     if (decisao === 'concordo') {
       await pool.query(
         `UPDATE auditorias
